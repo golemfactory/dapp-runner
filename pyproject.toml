@@ -1,0 +1,40 @@
+[tool.poetry]
+name = "dapp-runner"
+version = "0.0.1"
+description = "Golem dapp-runner - a high-level interface for running decentralized applications using the Golem Network."
+authors = ["Golem Factory <contact@golem.network>"]
+license = "LGPL-3.0"
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+  "Natural Language :: English",
+  "Programming Language :: Python :: 3.8",
+  "Topic :: Software Development",
+  "Topic :: System :: Distributed Computing",
+]
+repository = "https://github.com/golemfactory/dapp-runner"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+
+[tool.poetry.dev-dependencies]
+black = "^22.1"
+flake8 = "^3.9"
+flake8-docstrings = "^1.6"
+mypy = "^0.942"
+poethepoet = "^0.13"
+pytest = "^7.1"
+
+[tool.poe.tasks]
+code_check = "flake8"
+code_format = "black -v --check --diff ."
+code_typing = "mypy ."
+interactive = "python -m goth start goth/default-assets/goth-config.yml"
+unit_test = "pytest -svx test/unit"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
