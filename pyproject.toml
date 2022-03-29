@@ -19,6 +19,8 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.8"
+dpath = "^2.0"
+pyyaml = "^6.0"
 
 [tool.poetry.dev-dependencies]
 black = "^22.1"
