@@ -1,4 +1,4 @@
-"""Unit tests for `yapapi.compose.parser`.
+"""Unit tests for `dapp_runner.descriptor.parser`.
 
 Values used in `assert` calls are taken from test YAML files located in `./yaml` directory.
 """
