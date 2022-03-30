@@ -35,7 +35,7 @@ code_check = "flake8"
 code_format = "black -v --check --diff ."
 code_typing = "mypy --install-types --non-interactive --ignore-missing-imports ."
 all_checks = ["code_check", "code_format", "code_typing"]
-unit_test = "pytest -svx test/unit"
+unit_test = "pytest -svx tests/unit"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
