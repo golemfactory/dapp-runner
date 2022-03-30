@@ -33,8 +33,8 @@ pytest = "^7.1"
 [tool.poe.tasks]
 code_check = "flake8"
 code_format = "black -v --check --diff ."
-code_typing = "mypy ."
-interactive = "python -m goth start goth/default-assets/goth-config.yml"
+code_typing = "mypy --install-types --non-interactive --ignore-missing-imports ."
+all_checks = ["code_check", "code_format", "code_typing"]
 unit_test = "pytest -svx test/unit"
 
 [build-system]
