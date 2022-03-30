@@ -19,6 +19,8 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.8"
+dpath = "^2.0"
+pyyaml = "^6.0"
 
 [tool.poetry.dev-dependencies]
 black = "^22.1"
@@ -31,9 +33,9 @@ pytest = "^7.1"
 [tool.poe.tasks]
 code_check = "flake8"
 code_format = "black -v --check --diff ."
-code_typing = "mypy ."
-interactive = "python -m goth start goth/default-assets/goth-config.yml"
-unit_test = "pytest -svx test/unit"
+code_typing = "mypy --install-types --non-interactive --ignore-missing-imports ."
+all_checks = ["code_check", "code_format", "code_typing"]
+unit_test = "pytest -svx tests/unit"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
