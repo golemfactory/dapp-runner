@@ -21,7 +21,7 @@ def compose_yamls(request: pytest.FixtureRequest) -> List[Path]:
 
 def test_override_payment(compose_yamls: List[Path]):
     """Test if the `payment` key from base file gets overridden correctly."""
-    result = parser.load_yamls(compose_yamls)
+    result = parser.load_yamls(*compose_yamls)
     payment = result["payment"]
     # For keys existing in both files, the last value should be the final one
     assert payment["budget"] == 1
@@ -31,7 +31,7 @@ def test_override_payment(compose_yamls: List[Path]):
 
 def test_override_payloads(compose_yamls: List[Path]):
     """Test if the `payloads.nginx` key from base file gets overridden correctly."""
-    result = parser.load_yamls(compose_yamls)
+    result = parser.load_yamls(*compose_yamls)
     payload = result["payloads"]["nginx"]
 
     # Lists should be concatenated with respect to the order of the config files

@@ -1,13 +1,13 @@
 """Module containing logic related to parsing descriptor files."""
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import dpath.util
 import yaml
 
 
-def load_yamls(yaml_paths: List[Path]) -> Dict[str, Any]:
+def load_yamls(*yaml_paths: Path) -> Dict[str, Any]:
     """Load the provided YAML files, merging their contents in a deep manner.
 
     The order of the files is relevant, that is: the first YAML is considered the base.
