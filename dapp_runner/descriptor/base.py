@@ -1,6 +1,6 @@
 from dataclasses import dataclass, fields, Field
 
-from typing import Type, TypeVar
+from typing import Generic, Type, TypeVar
 
 
 class DescriptorError(Exception):
@@ -11,17 +11,18 @@ DescriptorType = TypeVar("DescriptorType", bound="BaseDescriptor")
 
 
 @dataclass
-class BaseDescriptor:
-    @classmethod
-    async def _resolve_dict(cls, f: Field, descriptor_value):
-        factory = f.metadata.get("factory", None)
-        if not factory:
-            return descriptor_value
+class BaseDescriptor(Generic[DescriptorType]):
+    class _Factory:
+        def __init__(self, f: Field, resolved_kwargs: dict):
+            self.f = f
+            self.resolved_kwargs = resolved_kwargs
 
-        d = {}
-        for value_key, value_value in descriptor_value.items():
-            d[value_key] = await factory.resolve(**value_value)
-        return d
+        def __bool__(self):
+            return "factory" in self.f.metadata
+
+        async def resolve(self, value):
+            required = {k: v for k,v in self.resolved_kwargs.items() if k in self.f.metadata.get("requires", [])}
+            return await self.f.metadata["factory"].resolve(**value, **required)
 
     @classmethod
     async def new(cls: Type[DescriptorType], descriptor_dict: dict) -> DescriptorType:
@@ -30,12 +31,19 @@ class BaseDescriptor:
             descriptor_value = descriptor_dict.get(f.name)
             if not descriptor_value:
                 break
-
+            factory = cls._Factory(f, resolved_kwargs)
             if type(f.type) is type:
-                factory = f.metadata.get("factory", None)
-                resolved_kwargs[f.name] = f.type(**descriptor_value) or await factory.resolve(**descriptor_value)
+                if factory:
+                    resolved_kwargs[f.name] = await factory.resolve(descriptor_value)
+                else:
+                    resolved_kwargs[f.name] = f.type(**descriptor_value)
             elif getattr(f.type, "__origin__", None) == dict:
-                resolved_kwargs[f.name] = await cls._resolve_dict(f, descriptor_value)
+                if not factory:
+                    resolved_kwargs[f.name] = descriptor_value
+                else:
+                    resolved_kwargs[f.name] = {}
+                    for k, v in descriptor_value.items():
+                        resolved_kwargs[f.name][k] = await factory.resolve(v)
             else:
                 raise NotImplementedError(f"Unimplemented handler for type {f.type.__origin__}")
 

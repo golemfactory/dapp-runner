@@ -6,6 +6,7 @@ from .base import BaseDescriptor
 
 @dataclass
 class YagnaConfig:
+    subnet_tag: Optional[str]
     api_url: Optional[str] = None
     gsb_url: Optional[str] = None
     app_key: Optional[str] = None
