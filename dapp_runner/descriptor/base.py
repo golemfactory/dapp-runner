@@ -25,18 +25,22 @@ class BaseDescriptor:
 
     @classmethod
     async def new(cls: Type[DescriptorType], descriptor_dict: dict) -> DescriptorType:
-        kwargs = {}
-        fields_dict = {f.name: f for f in fields(cls)}
-        for descriptor_key, descriptor_value in descriptor_dict.items():
-            f: Field = fields_dict.get(descriptor_key, None)
-            if not f:
+        resolved_kwargs = {}
+        for f in fields(cls):
+            descriptor_value = descriptor_dict.get(f.name)
+            if not descriptor_value:
                 break
-                raise DescriptorError(f"Unexpected key: `{descriptor_key}` for {self.__class__}")
+
             if type(f.type) is type:
                 factory = f.metadata.get("factory", None)
-                kwargs[f.name] = f.type(**descriptor_value) or await factory.resolve(**descriptor_value)
+                resolved_kwargs[f.name] = f.type(**descriptor_value) or await factory.resolve(**descriptor_value)
             elif getattr(f.type, "__origin__", None) == dict:
-                kwargs[f.name] = await cls._resolve_dict(f, descriptor_value)
+                resolved_kwargs[f.name] = await cls._resolve_dict(f, descriptor_value)
             else:
                 raise NotImplementedError(f"Unimplemented handler for type {f.type.__origin__}")
-        return cls(**kwargs)  # type: ignore
+
+        unexpected_keys = set(descriptor_dict.keys()) - set(f.name for f in fields(cls))
+        if unexpected_keys:
+            pass
+            #raise DescriptorError(f"Unexpected keys: `{unexpected_keys}` for {cls}")
+        return cls(**resolved_kwargs)  # type: ignore
