@@ -1,0 +1,10 @@
+yagna:
+#  api_url: "http://localhost:7465"
+#  gsb_url: "http://localhost:9999"
+  app_key: "$YAGNA_APP_KEY"
+
+
+payment:
+  budget: 1.0  # GLM
+  driver: "erc20"
+  network: "rinkeby"
