@@ -83,7 +83,7 @@ def start(
             kwargs[param_name] = app_dir / param_name
 
     # TODO: handle the result somehow
-    load_yamls(descriptors)
+    load_yamls(*descriptors)
 
     return app_id
 
