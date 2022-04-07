@@ -9,19 +9,22 @@ import click
 logger = logging.getLogger(__name__)
 
 
+def common_options(wrapped_func):
+    wrapped_func = click.option(
+        "--app-id",
+        type=str,
+        help="ID of an existing distributed application.",
+    )(wrapped_func)
+    return wrapped_func
+
+
 @click.group()
-@click.pass_context
-@click.option(
-    "--app-id",
-    type=str,
-    help="ID of an existing distributed application.",
-)
-def _cli(ctx: click.Context, app_id: str):
+def _cli():
     pass
 
 
 @_cli.command()
-@click.pass_context
+@common_options
 @click.option(
     "--data",
     "-d",
@@ -54,7 +57,7 @@ def _cli(ctx: click.Context, app_id: str):
     type=Path,
 )
 def start(
-    ctx: click.Context,
+    app_id: Optional[str],
     data: Optional[Path],
     log: Optional[Path],
     state: Optional[Path],
