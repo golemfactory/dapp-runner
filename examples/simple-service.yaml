@@ -13,7 +13,7 @@ nodes:
         -
           - "/bin/sh"
           - "-c"
-          - "sleep 105"
+          - "sleep 15"
         -
           - "/golem/run/simple_service.py"
           - "--stats"

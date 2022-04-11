@@ -7,5 +7,5 @@ yagna:
 
 payment:
   budget: 1.0  # GLM
-  driver: "zksync"
+  driver: "erc20"
   network: "rinkeby"
