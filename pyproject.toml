@@ -21,6 +21,7 @@ readme = "README.md"
 python = "^3.8"
 dpath = "^2.0"
 pyyaml = "^6.0"
+pytest-cov = "^3.0.0"
 
 [tool.poetry.dev-dependencies]
 black = "^22.1"
@@ -35,7 +36,8 @@ code_check = "flake8"
 code_format = "black --check --diff ."
 code_typing = "mypy --install-types --non-interactive --ignore-missing-imports ."
 all_checks = ["code_check", "code_format", "code_typing"]
-unit_test = "pytest -svx tests/unit"
+unit_test = "pytest --cov -svx tests/unit"
+test = ["unit_test", "all_checks"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
