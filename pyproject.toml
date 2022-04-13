@@ -32,13 +32,15 @@ flake8-docstrings = "^1.6"
 mypy = "^0.942"
 poethepoet = "^0.13"
 pytest = "^7.1"
+pytest-cov = "^3.0.0"
 
 [tool.poe.tasks]
 code_check = "flake8"
 code_format = "black --check --diff ."
 code_typing = "mypy --install-types --non-interactive --ignore-missing-imports ."
 all_checks = ["code_check", "code_format", "code_typing"]
-unit_test = "pytest -svx tests/unit"
+unit_test = "pytest --cov -svx tests/unit"
+test = ["unit_test", "all_checks"]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
