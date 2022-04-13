@@ -68,9 +68,9 @@ def start(
     load_yamls(*descriptors)
 
     # TODO: perhaps include some name from the descriptor in the run ID?
-    suffix = shortuuid.ShortUUID().random(length=6)
+    prefix = shortuuid.ShortUUID().random(length=6)
     start_time = datetime.now().strftime("%Y%m%d_%H:%M:%S%z")
-    run_id = f"{suffix}_{start_time}"
+    run_id = f"{prefix}_{start_time}"
     app_dir = _get_run_dir(run_id)
 
     # Provide default values for data, log and state parameters
