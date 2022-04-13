@@ -19,9 +19,11 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.8"
+appdirs = "^1.4"
+click = "^8.1"
 dpath = "^2.0"
 pyyaml = "^6.0"
-pytest-cov = "^3.0.0"
+shortuuid = "^1.0"
 
 [tool.poetry.dev-dependencies]
 black = "^22.1"
@@ -30,6 +32,7 @@ flake8-docstrings = "^1.6"
 mypy = "^0.942"
 poethepoet = "^0.13"
 pytest = "^7.1"
+pytest-cov = "^3.0.0"
 
 [tool.poe.tasks]
 code_check = "flake8"
