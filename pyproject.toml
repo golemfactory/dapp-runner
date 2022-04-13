@@ -37,7 +37,7 @@ code_check = "flake8"
 code_format = "black --check --diff ."
 code_typing = "mypy --install-types --non-interactive --ignore-missing-imports ."
 all_checks = ["code_check", "code_format", "code_typing"]
-unit_test = "pytest -svx tests/unit"
+unit_test = "pytest --cov --cov-report html --cov-report term -svx tests/unit"
 test = ["unit_test", "all_checks"]
 
 [build-system]
