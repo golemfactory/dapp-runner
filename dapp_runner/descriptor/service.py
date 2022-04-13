@@ -1,12 +1,17 @@
+"""yapapi Service bindings."""
 from typing import Union, List
 
 from yapapi.services import Service
 
 
 class DappService(Service):
+    """Yapapi Service definition for the Dapp Runner services."""
+
     entrypoint: List[Union[List[str], str]]
 
     async def start(self):
+        """Start the service on a given provider."""
+
         # perform the initialization of the Service
         # (which includes sending the network details within the `deploy` command)
         async for script in super().start():

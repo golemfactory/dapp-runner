@@ -1,4 +1,5 @@
-from datetime import datetime, timezone, timedelta
+"""Main Dapp Runner module."""
+from datetime import datetime, timezone
 from typing import Optional, Dict
 
 from yapapi import Golem
@@ -8,6 +9,12 @@ from ..descriptor import Config, Dapp
 
 
 class Runner:
+    """Distributed application runner.
+
+    Taking the yagna configuration and distributed application descriptor, the Runner
+    uses yapapi to run the desired app on Golem and allows interacting with it.
+    """
+
     config: Config
     dapp: Dapp
     golem: Golem
@@ -38,36 +45,54 @@ class Runner:
 
     async def start_cluster(self, cluster_name, cluster_class):
         """Start a single cluster for this dapp."""
-        self.clusters[cluster_name] = await self.golem.run_service(
-            cluster_class
-        )
+        self.clusters[cluster_name] = await self.golem.run_service(cluster_class)
 
     @property
-    def dapp_state(self):
+    def dapp_state(self) -> dict:
+        """Return the state of the dapp.
+
+        State of the dapp is a dictionary containing the state of the all the
+        Clusters and their Service instances comprising the dapp.
+        """
+
         return {
             cluster_id: self.clusters[cluster_id].instances
             for cluster_id in self.clusters.keys()
         }
 
     @property
-    def dapp_started(self):
-        return all([
-            self._is_cluster_state(cluster_id, ServiceState.running)
-            for cluster_id in self.clusters.keys()
-        ])
+    def dapp_started(self) -> bool:
+        """Return True if the dapp has been started, False otherwise.
+
+        Dapp is considered started if all instances in all commissioned service
+        clusters have been started and are remaining running.
+        """
+
+        return all(
+            [
+                self._is_cluster_state(cluster_id, ServiceState.running)
+                for cluster_id in self.clusters.keys()
+            ]
+        )
 
     @property
-    def dapp_terminated(self):
-        return all([
-            self._is_cluster_state(cluster_id, ServiceState.terminated)
-            for cluster_id in self.clusters.keys()
-        ])
+    def dapp_terminated(self) -> bool:
+        """Return True if the dapp has been terminated, False otherwise.
+
+        Dapp is considered terminated if all instances in all commissioned service
+        clusters have been terminated.
+        """
+
+        return all(
+            [
+                self._is_cluster_state(cluster_id, ServiceState.terminated)
+                for cluster_id in self.clusters.keys()
+            ]
+        )
 
     def _is_cluster_state(self, cluster_id: str, state: ServiceState) -> bool:
-        return all(
-            s.state == state
-            for s in self.clusters[cluster_id].instances
-        )
+        """Return True if the state of all instances in the cluster is `state`."""
+        return all(s.state == state for s in self.clusters[cluster_id].instances)
 
     async def stop(self):
         """Stop the dapp and the Golem engine."""

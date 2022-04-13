@@ -1,26 +1,34 @@
+"""Class definitions for the Dapp Runner's dapp descriptor."""
 import abc
 import asyncio
-from dataclasses import dataclass, field, fields, Field
+from dataclasses import dataclass, field
 
 from typing import Dict, TypeVar, Generic, Type, Optional
 from yapapi.payload import Payload, vm
-from ..service import DappService
 
 from .base import BaseDescriptor, DescriptorError
+from .service import DappService
 
 YapapiClass = TypeVar("YapapiClass")
 
 
 class YapapiFactory(Generic[YapapiClass], abc.ABC):
+    """Base factory for a given type of yapapi object or class."""
+
     @classmethod
     @abc.abstractmethod
-    async def resolve(cls, *kwargs) -> Type[YapapiClass]:
+    async def resolve(cls, **kwargs) -> YapapiClass:
         """Resolve the object based on the provided arguments."""
+        raise NotImplementedError()
 
 
 class PayloadFactory(YapapiFactory[Payload]):
+    """Factory producing instances of yapapi Payload from their descriptor."""
+
     @classmethod
-    async def resolve(cls, runtime: str, params: Optional[dict] = None) -> Payload:
+    async def resolve(cls, runtime: str, params: Optional[dict] = None) -> Payload:  # type: ignore  # noqa
+        """Create an instance of yapapi Payload for a given runtime type."""
+        params = params or {}
         if runtime == "vm":
             return await vm.repo(**params)
 
@@ -28,26 +36,30 @@ class PayloadFactory(YapapiFactory[Payload]):
 
 
 class ServiceFactory(YapapiFactory[Type[DappService]]):
+    """Factory producing classes of yapapi Services from their descriptor."""
+
     _idlock = asyncio.Lock()
     _id = 1
 
     @classmethod
-    async def resolve(cls, payload: str, entrypoint: list, payloads: Dict[str, Payload]) -> Type[DappService]:
+    async def resolve(  # type: ignore
+        cls, payload: str, entrypoint: list, payloads: Dict[str, Payload]
+    ) -> Type[DappService]:
+        """Create a service class corresponding with its descriptor."""
         async with cls._idlock:
             cls_id = cls._id
             cls._id += 1
 
-        @staticmethod
         async def get_payload():
             return payloads[payload]
 
         DappServiceClass = type(
             f"DappService{cls_id}",
-            (DappService, ),
+            (DappService,),
             {
-                "get_payload": get_payload,
+                "get_payload": staticmethod(get_payload),
                 "entrypoint": entrypoint,
-            }
+            },
         )
 
         return DappServiceClass
@@ -55,5 +67,9 @@ class ServiceFactory(YapapiFactory[Type[DappService]]):
 
 @dataclass
 class Dapp(BaseDescriptor):
-    payloads: Dict[str, Payload] = field(metadata={"factory": PayloadFactory}, default=None)
-    nodes: Dict[str, Type[DappService]] = field(metadata={"factory": ServiceFactory, "requires": ["payloads"]}, default=None)
+    """Root dapp descriptor for the Dapp Runner."""
+
+    payloads: Dict[str, Payload] = field(metadata={"factory": PayloadFactory})
+    nodes: Dict[str, Type[DappService]] = field(
+        metadata={"factory": ServiceFactory, "requires": ["payloads"]}
+    )

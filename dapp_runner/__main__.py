@@ -1,3 +1,8 @@
+"""Golem distributed application runner.
+
+Utilizes yapapi and yagna to spawn complete decentralized apps on Golem, according
+to a specification in the dapp's descriptor.
+"""
 import asyncio
 from datetime import datetime, timedelta, timezone
 import os
@@ -29,27 +34,35 @@ TEXT_COLOR_DEFAULT = "\033[0m"
 STARTING_TIMEOUT = timedelta(minutes=4)
 
 
-def print_env_info(golem: Golem):
+def _print_env_info(golem: Golem):
     print(
-        f"yapapi version: {TEXT_COLOR_YELLOW}{yapapi_version}{TEXT_COLOR_DEFAULT}\n"
-        f"Using subnet: {TEXT_COLOR_YELLOW}{golem.subnet_tag}{TEXT_COLOR_DEFAULT}, "
-        f"payment driver: {TEXT_COLOR_YELLOW}{golem.payment_driver}{TEXT_COLOR_DEFAULT}, "
-        f"and network: {TEXT_COLOR_YELLOW}{golem.payment_network}{TEXT_COLOR_DEFAULT}\n"
+        f"yapapi version: "
+        f"{TEXT_COLOR_YELLOW}{yapapi_version}{TEXT_COLOR_DEFAULT}\n"
+        f"Using subnet: "
+        f"{TEXT_COLOR_YELLOW}{golem.subnet_tag}{TEXT_COLOR_DEFAULT}, "
+        f"payment driver: "
+        f"{TEXT_COLOR_YELLOW}{golem.payment_driver}{TEXT_COLOR_DEFAULT}, "
+        f"and network: "
+        f"{TEXT_COLOR_YELLOW}{golem.payment_network}{TEXT_COLOR_DEFAULT}\n"
     )
 
 
-async def main():
+async def _main():
     config = await Config.new(load_yamls(Path("configs/default.yaml")))
     appkey = os.getenv("YAGNA_APPKEY")
     config.yagna.app_key = appkey
     dapp = await Dapp.new(load_yamls(Path("examples/simple-service.yaml")))
 
     runner = Runner(config=config, dapp=dapp)
-    print_env_info(runner.golem)
+    _print_env_info(runner.golem)
 
     await runner.start()
     try:
-        while not runner.dapp_started and datetime.now(timezone.utc) < runner.commissioning_time + STARTING_TIMEOUT:
+        while (
+            not runner.dapp_started
+            and datetime.now(timezone.utc)
+            < runner.commissioning_time + STARTING_TIMEOUT
+        ):
             print(runner.dapp_state)
             await asyncio.sleep(5)
 
@@ -83,22 +96,15 @@ if __name__ == "__main__":
     )
 
     loop = asyncio.get_event_loop()
-    task = loop.create_task(main())
+    task = loop.create_task(_main())
 
     try:
         loop.run_until_complete(task)
     except KeyboardInterrupt:
-        print(
-            f"{TEXT_COLOR_YELLOW}"
-            "Shutting down gracefully, please wait a short while "
-            "or press Ctrl+C to exit immediately..."
-            f"{TEXT_COLOR_DEFAULT}"
-        )
+        print(f"{TEXT_COLOR_YELLOW}Shutting down ...{TEXT_COLOR_DEFAULT}")
         task.cancel()
         try:
             loop.run_until_complete(task)
-            print(
-                f"{TEXT_COLOR_YELLOW}Shutdown completed, thank you for waiting!{TEXT_COLOR_DEFAULT}"
-            )
+            print(f"{TEXT_COLOR_YELLOW}Shutdown completed{TEXT_COLOR_DEFAULT}")
         except (asyncio.CancelledError, KeyboardInterrupt):
             pass
