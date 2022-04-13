@@ -1,11 +1,12 @@
 """Main entry point to `dapp_runner`."""
+from datetime import datetime
 import logging
 from pathlib import Path
 from typing import Tuple
-import uuid
 
 import appdirs
 import click
+import shortuuid
 
 from dapp_runner import MODULE_AUTHOR, MODULE_NAME
 from dapp_runner.descriptor.parser import load_yamls
@@ -14,29 +15,19 @@ from dapp_runner.descriptor.parser import load_yamls
 logger = logging.getLogger(__name__)
 
 
-def _common_options(wrapped_func):
-    wrapped_func = click.option(
-        "--app-id",
-        type=str,
-        help="ID of an existing distributed application.",
-    )(wrapped_func)
-    return wrapped_func
-
-
 @click.group()
 def _cli():
     pass
 
 
-def _get_app_dir(app_id: str) -> Path:
+def _get_run_dir(run_id: str) -> Path:
     data_dir = appdirs.user_data_dir(MODULE_NAME, MODULE_AUTHOR)
-    app_dir = Path(data_dir) / app_id
+    app_dir = Path(data_dir) / run_id
     app_dir.mkdir(exist_ok=True, parents=True)
     return app_dir
 
 
 @_cli.command()
-@_common_options
 @click.option(
     "--data",
     "-d",
@@ -71,21 +62,23 @@ def _get_app_dir(app_id: str) -> Path:
 def start(
     descriptors: Tuple[Path],
     **kwargs,
-) -> str:
+) -> None:
     """Start a dApp based on the provided configuration and set of descriptor files."""
-    app_id = kwargs["app_id"] or str(uuid.uuid4())
-    app_dir = _get_app_dir(app_id)
+    # TODO: handle the result somehow
+    load_yamls(*descriptors)
 
+    # TODO: perhaps include some name from the descriptor in the run ID?
+    suffix = shortuuid.ShortUUID().random(length=6)
+    start_time = datetime.now().strftime("%Y%m%d_%H:%M:%S%z")
+    run_id = f"{suffix}_{start_time}"
+    app_dir = _get_run_dir(run_id)
+
+    # Provide default values for data, log and state parameters
     for param_name in ["data", "log", "state"]:
         param_value = kwargs[param_name]
         if not param_value:
             # TODO: pass these arguments further
             kwargs[param_name] = app_dir / param_name
-
-    # TODO: handle the result somehow
-    load_yamls(*descriptors)
-
-    return app_id
 
 
 if __name__ == "__main__":
