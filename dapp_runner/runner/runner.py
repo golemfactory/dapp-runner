@@ -56,7 +56,7 @@ class Runner:
         """
 
         return {
-            cluster_id: self.clusters[cluster_id].instances
+            cluster_id: [{"state": s.state.name for s in self.clusters[cluster_id].instances}]
             for cluster_id in self.clusters.keys()
         }
 

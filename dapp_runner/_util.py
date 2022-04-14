@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from yapapi import Golem, __version__ as yapapi_version
 
 TEXT_COLOR_RED = "\033[31;1m"
@@ -22,3 +23,7 @@ def _print_env_info(golem: Golem):
         f"and network: "
         f"{TEXT_COLOR_YELLOW}{golem.payment_network}{TEXT_COLOR_DEFAULT}\n"
     )
+
+
+def utcnow() -> datetime:
+    return datetime.now(tz=timezone.utc)

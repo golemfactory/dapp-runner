@@ -1,19 +1,25 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
+from io import TextIOBase
+import json
 from pathlib import Path
 
 from yapapi.log import enable_default_logger
 
 from dapp_runner.descriptor import Config, Dapp
-from dapp_runner._util import _print_env_info, TEXT_COLOR_YELLOW, TEXT_COLOR_DEFAULT
+from dapp_runner._util import (
+    _print_env_info, TEXT_COLOR_YELLOW, TEXT_COLOR_DEFAULT, utcnow
+)
 
 from .runner import Runner
 
 STARTING_TIMEOUT = timedelta(minutes=4)
+STATE_INTERVAL = timedelta(seconds=1)
+STATE_PRINT_INTERVAL = timedelta(seconds=5)
 
 
 async def _run_app(
-    config_dict: dict, dapp_dict: dict, data: Path, log: Path, state: Path
+    config_dict: dict, dapp_dict: dict, log: Path, data_f: TextIOBase, state_f: TextIOBase
 ):
     """Run the dapp using the Runner."""
     config = await Config.new(config_dict)
@@ -30,6 +36,21 @@ async def _run_app(
     r = Runner(config=config, dapp=dapp)
     _print_env_info(r.golem)
 
+    state_streamed = utcnow()
+    state_printed = utcnow()
+
+    def update_state():
+        nonlocal state_streamed, state_printed
+
+        now = utcnow()
+        state = r.dapp_state
+        if state_streamed + STATE_INTERVAL <= now:
+            state_f.write(json.dumps(state) + "\n")
+            state_streamed = now
+        if state_printed + STATE_PRINT_INTERVAL <= now:
+            print(json.dumps(state))
+            state_printed = now
+
     await r.start()
     assert r.commissioning_time  # sanity check for mypy
     try:
@@ -37,8 +58,8 @@ async def _run_app(
             not r.dapp_started
             and datetime.now(timezone.utc) < r.commissioning_time + STARTING_TIMEOUT
         ):
-            print(r.dapp_state)
-            await asyncio.sleep(5)
+            update_state()
+            await asyncio.sleep(0.1)
 
         if not r.dapp_started:
             raise Exception(
@@ -48,8 +69,8 @@ async def _run_app(
         print(f"{TEXT_COLOR_YELLOW}Dapp started.{TEXT_COLOR_DEFAULT}")
 
         while r.dapp_started:
-            print(r.dapp_state)
-            await asyncio.sleep(5)
+            update_state()
+            await asyncio.sleep(0.1)
 
     except asyncio.CancelledError:
         pass
@@ -63,16 +84,18 @@ def start_runner(
 ):
     """Launch the runner in an asyncio loop and wait for its shutdown."""
 
-    loop = asyncio.get_event_loop()
-    task = loop.create_task(_run_app(config_dict, dapp_dict, data, log, state))
+    with open(str(state), "w", 1) as state_f, open(str(data), "w", 1) as data_f:
 
-    try:
-        loop.run_until_complete(task)
-    except KeyboardInterrupt:
-        print(f"{TEXT_COLOR_YELLOW}Shutting down ...{TEXT_COLOR_DEFAULT}")
-        task.cancel()
+        loop = asyncio.get_event_loop()
+        task = loop.create_task(_run_app(config_dict, dapp_dict, log, data_f, state_f))
+
         try:
             loop.run_until_complete(task)
-            print(f"{TEXT_COLOR_YELLOW}Shutdown completed{TEXT_COLOR_DEFAULT}")
-        except (asyncio.CancelledError, KeyboardInterrupt):
-            pass
+        except KeyboardInterrupt:
+            print(f"{TEXT_COLOR_YELLOW}Shutting down ...{TEXT_COLOR_DEFAULT}")
+            task.cancel()
+            try:
+                loop.run_until_complete(task)
+                print(f"{TEXT_COLOR_YELLOW}Shutdown completed{TEXT_COLOR_DEFAULT}")
+            except (asyncio.CancelledError, KeyboardInterrupt):
+                pass
