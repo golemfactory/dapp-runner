@@ -7,13 +7,6 @@ nodes:
   simple-service:
     payload: "simple-service"
     entrypoint:
-        -
-          - "/golem/run/simulate_observations_ctl.py"
-          - "--start"
-        -
-          - "/bin/sh"
-          - "-c"
-          - "sleep 15"
-        -
-          - "/golem/run/simple_service.py"
-          - "--stats"
+        - ["/golem/run/simulate_observations_ctl.py", "--start"]
+        - ["/bin/sh", "-c", "sleep 15" ]
+        - [ "/golem/run/simple_service.py", "--stats"]

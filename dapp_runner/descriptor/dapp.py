@@ -3,7 +3,7 @@ import abc
 import asyncio
 from dataclasses import dataclass, field
 
-from typing import Dict, TypeVar, Generic, Type, Optional
+from typing import Dict, TypeVar, Generic, Type, Optional, Union, List
 from yapapi.payload import Payload, vm
 
 from .base import BaseDescriptor, DescriptorError
@@ -43,7 +43,10 @@ class ServiceFactory(YapapiFactory[Type[DappService]]):
 
     @classmethod
     async def resolve(  # type: ignore
-        cls, payload: str, entrypoint: list, payloads: Dict[str, Payload]
+        cls,
+        payload: str,
+        entrypoint: Union[List[str], List[List[str]]],
+        payloads: Dict[str, Payload],
     ) -> Type[DappService]:
         """Create a service class corresponding with its descriptor."""
         async with cls._idlock:

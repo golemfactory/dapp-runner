@@ -1,4 +1,4 @@
-"""Golem distributed application runner.
+"""Golem dapp runner.
 
 Utilizes yapapi and yagna to spawn complete decentralized apps on Golem, according
 to a specification in the dapp's descriptor.
@@ -79,7 +79,8 @@ def start(
     dapp_dict = load_yamls(*descriptors)
     config_dict = load_yamls(config)
 
-    # TODO process this on the descriptor level?
+    # TODO this should be applied uniformly across any fields,
+    # for now, making an exception for the app key
     appkey = config_dict["yagna"].get("app_key", "")
     if appkey.startswith("$"):
         config_dict["yagna"]["app_key"] = os.getenv(appkey[1:])
