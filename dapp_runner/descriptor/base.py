@@ -69,5 +69,7 @@ class BaseDescriptor(Generic[DescriptorType]):
 
         unexpected_keys = set(descriptor_dict.keys()) - set(f.name for f in fields(cls))
         if unexpected_keys:
-            raise DescriptorError(f"Unexpected keys: `{unexpected_keys}` for {cls}")
+            raise DescriptorError(
+                f"Unexpected keys: `{unexpected_keys}` for `{cls.__name__}`"
+            )
         return cls(**resolved_kwargs)  # type: ignore

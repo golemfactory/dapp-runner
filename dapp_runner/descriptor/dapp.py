@@ -32,7 +32,7 @@ class PayloadFactory(YapapiFactory[Payload]):
         if runtime == "vm":
             return await vm.repo(**params)
 
-        raise DescriptorError(f"Unimplemented {cls.__name__} for {runtime}")
+        raise DescriptorError(f"Unimplemented {cls.__name__} for runtime: `{runtime}`")
 
 
 class ServiceFactory(YapapiFactory[Type[DappService]]):
@@ -50,8 +50,13 @@ class ServiceFactory(YapapiFactory[Type[DappService]]):
             cls_id = cls._id
             cls._id += 1
 
+        try:
+            payload_instance = payloads[payload]
+        except KeyError:
+            raise DescriptorError(f"Undefined payload: `{payload}`")
+
         async def get_payload():
-            return payloads[payload]
+            return payload_instance
 
         DappServiceClass = type(
             f"DappService{cls_id}",
