@@ -1,7 +1,7 @@
 yagna:
 #  api_url: "http://localhost:7465"
 #  gsb_url: "http://localhost:9999"
-  app_key: "$YAGNA_APP_KEY"
+  app_key: "$YAGNA_APPKEY"
   subnet_tag: "devnet-beta"
 
 

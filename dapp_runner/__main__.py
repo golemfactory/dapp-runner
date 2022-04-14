@@ -3,108 +3,101 @@
 Utilizes yapapi and yagna to spawn complete decentralized apps on Golem, according
 to a specification in the dapp's descriptor.
 """
-import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import datetime
+import logging
 import os
-
 from pathlib import Path
+from typing import Tuple
+
+import appdirs
+import click
+import shortuuid
+
+
+from dapp_runner import MODULE_AUTHOR, MODULE_NAME
 from dapp_runner.descriptor.parser import load_yamls
-from dapp_runner.descriptor import Dapp, Config
-from dapp_runner.runner import Runner
+from dapp_runner.runner import start_runner
 
-from yapapi import (
-    Golem,
-    windows_event_loop_fix,
-    __version__ as yapapi_version,
+
+logger = logging.getLogger(__name__)
+
+
+@click.group()
+def _cli():
+    pass
+
+
+def _get_data_dir() -> Path:
+    data_dir = appdirs.user_data_dir(MODULE_NAME, MODULE_AUTHOR)
+    return Path(data_dir)
+
+
+def _get_run_dir(run_id: str) -> Path:
+    app_dir = _get_data_dir() / run_id
+    app_dir.mkdir(exist_ok=True, parents=True)
+    return app_dir
+
+
+@_cli.command()
+@click.option(
+    "--data",
+    "-d",
+    type=Path,
+    help="Path to the data file.",
 )
-from yapapi.log import enable_default_logger
+@click.option(
+    "--log",
+    "-l",
+    type=Path,
+    help="Path to the log file.",
+)
+@click.option(
+    "--state",
+    "-s",
+    type=Path,
+    help="Path to the state file.",
+)
+@click.option(
+    "--config",
+    "-c",
+    type=Path,
+    required=True,
+    help="Path to the file containing yagna-specific config.",
+)
+@click.argument(
+    "descriptors",
+    nargs=-1,
+    required=True,
+    type=Path,
+)
+def start(
+    descriptors: Tuple[Path],
+    config: Path,
+    **kwargs,
+) -> None:
+    """Start a dApp based on the provided configuration and set of descriptor files."""
+    dapp_dict = load_yamls(*descriptors)
+    config_dict = load_yamls(config)
 
+    # TODO process this on the descriptor level?
+    appkey = config_dict["yagna"].get("app_key", "")
+    if appkey.startswith("$"):
+        config_dict["yagna"]["app_key"] = os.getenv(appkey[1:])
 
-TEXT_COLOR_RED = "\033[31;1m"
-TEXT_COLOR_GREEN = "\033[32;1m"
-TEXT_COLOR_YELLOW = "\033[33;1m"
-TEXT_COLOR_BLUE = "\033[34;1m"
-TEXT_COLOR_MAGENTA = "\033[35;1m"
-TEXT_COLOR_CYAN = "\033[36;1m"
-TEXT_COLOR_WHITE = "\033[37;1m"
+    # TODO: perhaps include some name from the descriptor in the run ID?
+    prefix = shortuuid.ShortUUID().random(length=6)
+    start_time = datetime.now().strftime("%Y%m%d_%H:%M:%S%z")
+    run_id = f"{prefix}_{start_time}"
+    app_dir = _get_run_dir(run_id)
 
-TEXT_COLOR_DEFAULT = "\033[0m"
+    # Provide default values for data, log and state parameters
+    for param_name in ["data", "log", "state"]:
+        param_value = kwargs[param_name]
+        if not param_value:
+            kwargs[param_name] = app_dir / param_name
 
-
-STARTING_TIMEOUT = timedelta(minutes=4)
-
-
-def _print_env_info(golem: Golem):
-    print(
-        f"yapapi version: "
-        f"{TEXT_COLOR_YELLOW}{yapapi_version}{TEXT_COLOR_DEFAULT}\n"
-        f"Using subnet: "
-        f"{TEXT_COLOR_YELLOW}{golem.subnet_tag}{TEXT_COLOR_DEFAULT}, "
-        f"payment driver: "
-        f"{TEXT_COLOR_YELLOW}{golem.payment_driver}{TEXT_COLOR_DEFAULT}, "
-        f"and network: "
-        f"{TEXT_COLOR_YELLOW}{golem.payment_network}{TEXT_COLOR_DEFAULT}\n"
-    )
-
-
-async def _main():
-    config = await Config.new(load_yamls(Path("configs/default.yaml")))
-    appkey = os.getenv("YAGNA_APPKEY")
-    config.yagna.app_key = appkey
-    dapp = await Dapp.new(load_yamls(Path("examples/simple-service.yaml")))
-
-    runner = Runner(config=config, dapp=dapp)
-    _print_env_info(runner.golem)
-
-    await runner.start()
-    try:
-        while (
-            not runner.dapp_started
-            and datetime.now(timezone.utc)
-            < runner.commissioning_time + STARTING_TIMEOUT
-        ):
-            print(runner.dapp_state)
-            await asyncio.sleep(5)
-
-        if not runner.dapp_started:
-            raise Exception(
-                f"Failed to start instances before {STARTING_TIMEOUT} elapsed."
-            )
-
-        print(f"{TEXT_COLOR_YELLOW}Dapp started.{TEXT_COLOR_DEFAULT}")
-
-        while runner.dapp_started:
-            print(runner.dapp_state)
-            await asyncio.sleep(5)
-
-    except asyncio.CancelledError:
-        pass
-    finally:
-        print(f"{TEXT_COLOR_YELLOW}Stopping the dapp...{TEXT_COLOR_DEFAULT}")
-        await runner.stop()
+    start_runner(config_dict, dapp_dict, **kwargs)
 
 
 if __name__ == "__main__":
-    # This is only required when running on Windows with Python prior to 3.8:
-    windows_event_loop_fix()
-
-    enable_default_logger(
-        debug_activity_api=True,
-        debug_market_api=True,
-        debug_payment_api=True,
-        debug_net_api=True,
-    )
-
-    loop = asyncio.get_event_loop()
-    task = loop.create_task(_main())
-
-    try:
-        loop.run_until_complete(task)
-    except KeyboardInterrupt:
-        print(f"{TEXT_COLOR_YELLOW}Shutting down ...{TEXT_COLOR_DEFAULT}")
-        task.cancel()
-        try:
-            loop.run_until_complete(task)
-            print(f"{TEXT_COLOR_YELLOW}Shutdown completed{TEXT_COLOR_DEFAULT}")
-        except (asyncio.CancelledError, KeyboardInterrupt):
-            pass
+    _cli()

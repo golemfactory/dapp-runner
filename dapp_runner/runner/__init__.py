@@ -1,102 +1,78 @@
-"""Main Dapp Runner module."""
-from datetime import datetime, timezone
-from typing import Optional, Dict
+import asyncio
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
-from yapapi import Golem
-from yapapi.services import Cluster, ServiceState
+from yapapi.log import enable_default_logger
 
-from ..descriptor import Config, Dapp
+from dapp_runner.descriptor import Config, Dapp
+from dapp_runner._util import _print_env_info, TEXT_COLOR_YELLOW, TEXT_COLOR_DEFAULT
+
+from .runner import Runner
+
+STARTING_TIMEOUT = timedelta(minutes=4)
 
 
-class Runner:
-    """Distributed application runner.
+async def _run_app(
+    config_dict: dict, dapp_dict: dict, data: Path, log: Path, state: Path
+):
+    """Run the dapp using the Runner."""
+    config = await Config.new(config_dict)
+    dapp = await Dapp.new(dapp_dict)
 
-    Taking the yagna configuration and distributed application descriptor, the Runner
-    uses yapapi to run the desired app on Golem and allows interacting with it.
-    """
+    enable_default_logger(
+        log_file=str(log),
+        debug_activity_api=True,
+        debug_market_api=True,
+        debug_payment_api=True,
+        debug_net_api=True,
+    )
 
-    config: Config
-    dapp: Dapp
-    golem: Golem
-    clusters: Dict[str, Cluster]
-    commissioning_time: Optional[datetime]
+    r = Runner(config=config, dapp=dapp)
+    _print_env_info(r.golem)
 
-    def __init__(self, config: Config, dapp: Dapp):
-        self.config = config
-        self.dapp = dapp
+    await r.start()
+    assert r.commissioning_time  # sanity check for mypy
+    try:
+        while (
+            not r.dapp_started
+            and datetime.now(timezone.utc) < r.commissioning_time + STARTING_TIMEOUT
+        ):
+            print(r.dapp_state)
+            await asyncio.sleep(5)
 
-        self.golem = Golem(
-            budget=config.payment.budget,
-            subnet_tag=config.yagna.subnet_tag,
-            payment_driver=config.payment.driver,
-            payment_network=config.payment.network,
-            app_key=config.yagna.app_key,
-        )
+        if not r.dapp_started:
+            raise Exception(
+                f"Failed to start instances before {STARTING_TIMEOUT} elapsed."
+            )
 
-        self.clusters = {}
+        print(f"{TEXT_COLOR_YELLOW}Dapp started.{TEXT_COLOR_DEFAULT}")
 
-    async def start(self):
-        """Start the Golem engine and the dapp."""
-        self.commissioning_time = datetime.now(tz=timezone.utc)
-        await self.golem.start()
+        while r.dapp_started:
+            print(r.dapp_state)
+            await asyncio.sleep(5)
 
-        for cluster_id, cluster_class in self.dapp.nodes.items():
-            await self.start_cluster(cluster_id, cluster_class)
+    except asyncio.CancelledError:
+        pass
+    finally:
+        print(f"{TEXT_COLOR_YELLOW}Stopping the dapp...{TEXT_COLOR_DEFAULT}")
+        await r.stop()
 
-    async def start_cluster(self, cluster_name, cluster_class):
-        """Start a single cluster for this dapp."""
-        self.clusters[cluster_name] = await self.golem.run_service(cluster_class)
 
-    @property
-    def dapp_state(self) -> dict:
-        """Return the state of the dapp.
+def start_runner(
+    config_dict: dict, dapp_dict: dict, data: Path, log: Path, state: Path
+):
+    """Launch the runner in an asyncio loop and wait for its shutdown."""
 
-        State of the dapp is a dictionary containing the state of the all the
-        Clusters and their Service instances comprising the dapp.
-        """
+    loop = asyncio.get_event_loop()
+    task = loop.create_task(_run_app(config_dict, dapp_dict, data, log, state))
 
-        return {
-            cluster_id: self.clusters[cluster_id].instances
-            for cluster_id in self.clusters.keys()
-        }
-
-    @property
-    def dapp_started(self) -> bool:
-        """Return True if the dapp has been started, False otherwise.
-
-        Dapp is considered started if all instances in all commissioned service
-        clusters have been started and are remaining running.
-        """
-
-        return all(
-            [
-                self._is_cluster_state(cluster_id, ServiceState.running)
-                for cluster_id in self.clusters.keys()
-            ]
-        )
-
-    @property
-    def dapp_terminated(self) -> bool:
-        """Return True if the dapp has been terminated, False otherwise.
-
-        Dapp is considered terminated if all instances in all commissioned service
-        clusters have been terminated.
-        """
-
-        return all(
-            [
-                self._is_cluster_state(cluster_id, ServiceState.terminated)
-                for cluster_id in self.clusters.keys()
-            ]
-        )
-
-    def _is_cluster_state(self, cluster_id: str, state: ServiceState) -> bool:
-        """Return True if the state of all instances in the cluster is `state`."""
-        return all(s.state == state for s in self.clusters[cluster_id].instances)
-
-    async def stop(self):
-        """Stop the dapp and the Golem engine."""
-        for cluster in self.clusters.values():
-            cluster.stop()
-
-        await self.golem.stop()
+    try:
+        loop.run_until_complete(task)
+    except KeyboardInterrupt:
+        print(f"{TEXT_COLOR_YELLOW}Shutting down ...{TEXT_COLOR_DEFAULT}")
+        task.cancel()
+        try:
+            loop.run_until_complete(task)
+            print(f"{TEXT_COLOR_YELLOW}Shutdown completed{TEXT_COLOR_DEFAULT}")
+        except (asyncio.CancelledError, KeyboardInterrupt):
+            pass
