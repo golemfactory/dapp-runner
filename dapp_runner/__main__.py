@@ -83,7 +83,7 @@ def start(
     # for now, making an exception for the app key
     appkey = config_dict["yagna"].get("app_key", "")
     if appkey.startswith("$"):
-        config_dict["yagna"]["app_key"] = os.getenv(appkey[1:])
+        config_dict["yagna"]["app_key"] = os.environ[appkey[1:]]
 
     # TODO: perhaps include some name from the descriptor in the run ID?
     prefix = shortuuid.ShortUUID().random(length=6)
