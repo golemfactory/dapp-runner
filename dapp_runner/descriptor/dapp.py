@@ -74,7 +74,7 @@ class ServiceFactory(YapapiFactory[Type[DappService]]):
 
 
 @dataclass
-class Dapp(BaseDescriptor):
+class Dapp(BaseDescriptor["Dapp"]):
     """Root dapp descriptor for the Dapp Runner."""
 
     payloads: Dict[str, Payload] = field(metadata={"factory": PayloadFactory})

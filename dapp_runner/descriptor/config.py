@@ -29,7 +29,7 @@ class PaymentConfig:
 
 
 @dataclass
-class Config(BaseDescriptor):
+class Config(BaseDescriptor["Config"]):
     """Root configuration descriptor for the Dapp Runner."""
 
     yagna: YagnaConfig
