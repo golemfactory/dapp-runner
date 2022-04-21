@@ -26,4 +26,5 @@ class DappService(Service):
                 # multiple commands
                 for c in self.entrypoint:
                     script.run(*c)
-            yield script
+            entrypoint_output = yield script
+            await self._respond(await entrypoint_output)

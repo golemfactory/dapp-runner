@@ -70,6 +70,10 @@ def _get_run_dir(run_id: str) -> Path:
     required=True,
     type=Path,
 )
+@click.option(
+    "--silent",
+    is_flag=True,
+)
 def start(
     descriptors: Tuple[Path],
     config: Path,

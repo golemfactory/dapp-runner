@@ -1,8 +1,10 @@
 """Main Dapp Runner module."""
 from datetime import datetime, timezone
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 
 from yapapi import Golem
+from yapapi.events import CommandExecuted
+from yapapi.script.command import Command
 from yapapi.services import Cluster, ServiceState
 
 from dapp_runner.descriptor import Config, Dapp
@@ -56,7 +58,10 @@ class Runner:
         """
 
         return {
-            cluster_id: [{"state": s.state.name for s in self.clusters[cluster_id].instances}]
+            cluster_id: {
+                idx: self.clusters[cluster_id].instances[idx].state.name
+                for idx in range(len(self.clusters[cluster_id].instances))
+            }
             for cluster_id in self.clusters.keys()
         }
 
@@ -89,6 +94,35 @@ class Runner:
                 for cluster_id in self.clusters.keys()
             ]
         )
+
+    def _process_data_message(self, message: List[CommandExecuted]) -> list:
+        for e in message:
+            assert isinstance(e, CommandExecuted)
+            yield {
+                "command": e.command.evaluate(),
+                "success": e.success,
+                "stdout": e.stdout,
+                "stderr": e.stderr,
+            }
+
+    def dapp_data(self):
+        out_messages = {}
+        for cluster_id, cluster in self.clusters.items():
+            cluster_messages = {}
+            for idx in range(len(cluster.instances)):
+                instance = cluster.instances[idx]
+                instance_messages = []
+                while True:
+                    signal = instance.receive_message_nowait()
+                    if not signal:
+                        break
+                    instance_messages.extend(self._process_data_message(signal.message))
+                if instance_messages:
+                    cluster_messages[idx] = instance_messages
+            if cluster_messages:
+                out_messages[cluster_id] = cluster_messages
+        if out_messages:
+            return out_messages
 
     def _is_cluster_state(self, cluster_id: str, state: ServiceState) -> bool:
         """Return True if the state of all instances in the cluster is `state`."""
