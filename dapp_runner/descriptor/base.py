@@ -1,7 +1,7 @@
 """Dapp runner descriptor base classes."""
 from dataclasses import dataclass, fields, Field
 
-from typing import Generic, Type, TypeVar, Dict, Any
+from typing import Generic, Type, TypeVar, Dict, List, Any
 
 
 class DescriptorError(Exception):
@@ -38,15 +38,53 @@ class BaseDescriptor(Generic[DescriptorType]):
             )
 
     @classmethod
+    def _load_dict(cls, f: Field, descriptor_value: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            entry_type = getattr(f.type, "__args__", None)[
+                1
+            ]  # type: ignore [index] # noqa
+        except (TypeError, IndexError):
+            entry_type = None
+
+        # is the dict's value type defined as a simple type?
+        if type(entry_type) is type:
+            out = {}
+            for k, v in descriptor_value.items():
+                out[k] = cls._instantiate_value(f"{f.name}[{k}]", f, entry_type, v)
+            return out
+        return descriptor_value
+
+    @classmethod
+    def _load_list(cls, f: Field, descriptor_value: List[Any]) -> List[Any]:
+        try:
+            entry_type = getattr(f.type, "__args__", None)[
+                0
+            ]  # type: ignore [index] # noqa
+        except (TypeError, IndexError):
+            entry_type = None
+
+        # is the list's value type defined as a simple type?
+        if type(entry_type) is type:
+            out = []
+            for i in range(len(descriptor_value)):
+                v = descriptor_value[i]
+                out.append(cls._instantiate_value(f"{f.name}[{i}]", f, entry_type, v))
+            return out
+        return descriptor_value
+
+    @classmethod
     def load(
         cls: Type[DescriptorType], descriptor_dict: Dict[str, Any]
     ) -> DescriptorType:
         """Create a new descriptor object from its dictionary representation."""
         resolved_kwargs: Dict[str, Any] = {}
         for f in fields(cls):
-            descriptor_value = descriptor_dict.get(f.name)
-            if not descriptor_value:
+            # if the fields value is not provided in the descriptor, we're leaving
+            # that to the instantiated class' `__init__` to warn about that
+            if f.name not in descriptor_dict.keys():
                 continue
+
+            descriptor_value = descriptor_dict.get(f.name)
 
             # field is a simple type
             if type(f.type) is type:
@@ -65,40 +103,11 @@ class BaseDescriptor(Generic[DescriptorType]):
 
             # field is a `Dict`
             elif getattr(f.type, "__origin__", None) == dict:
-                try:
-                    entry_type = getattr(f.type, "__args__", None)[1]  # type: ignore [index] # noqa
-                except (TypeError, IndexError):
-                    entry_type = None
-
-                # is the dict's value type defined as a simple type?
-                if type(entry_type) is type:
-                    resolved_kwargs[f.name] = {}
-                    for k, v in descriptor_value.items():
-                        resolved_kwargs[f.name][k] = cls._instantiate_value(
-                            f"{f.name}[{k}]", f, entry_type, v
-                        )
-                # otherwise, just load it as a generic dict
-                else:
-                    resolved_kwargs[f.name] = descriptor_value
+                resolved_kwargs[f.name] = cls._load_dict(f, descriptor_value)  # type: ignore [arg-type] # noqa
 
             # field is a `List`
             elif getattr(f.type, "__origin__", None) == list:
-                try:
-                    entry_type = getattr(f.type, "__args__", None)[0]  # type: ignore [index] # noqa
-                except (TypeError, IndexError):
-                    entry_type = None
-
-                # is the list's value type defined as a simple type?
-                if type(entry_type) is type:
-                    resolved_kwargs[f.name] = []
-                    for i in range(len(descriptor_value)):
-                        v = descriptor_value[i]
-                        resolved_kwargs[f.name].append(
-                            cls._instantiate_value(f"{f.name}[{i}]", f, entry_type, v)
-                        )
-                # otherwise, just load it as a generic list
-                else:
-                    resolved_kwargs[f.name] = descriptor_value
+                resolved_kwargs[f.name] = cls._load_list(f, descriptor_value)  # type: ignore [arg-type] # noqa
 
             else:
                 raise NotImplementedError(
