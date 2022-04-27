@@ -3,9 +3,13 @@ from datetime import datetime, timezone
 from typing import Optional, Dict
 
 from yapapi import Golem
+from yapapi.payload import Payload
 from yapapi.services import Cluster, ServiceState
 
-from dapp_runner.descriptor import Config, Dapp
+from dapp_runner.descriptor import Config, DappDescriptor
+
+from .payload import get_payload
+from .service import get_service
 
 
 class Runner:
@@ -16,12 +20,14 @@ class Runner:
     """
 
     config: Config
-    dapp: Dapp
+    dapp: DappDescriptor
     golem: Golem
     clusters: Dict[str, Cluster]
     commissioning_time: Optional[datetime]
 
-    def __init__(self, config: Config, dapp: Dapp):
+    _payloads: Dict[str, Payload]
+
+    def __init__(self, config: Config, dapp: DappDescriptor):
         self.config = config
         self.dapp = dapp
 
@@ -34,14 +40,24 @@ class Runner:
         )
 
         self.clusters = {}
+        self._payloads = {}
+
+    async def _load_payloads(self):
+        for name, desc in self.dapp.payloads.items():
+            self._payloads[name] = await get_payload(desc)
 
     async def start(self):
         """Start the Golem engine and the dapp."""
         self.commissioning_time = datetime.now(tz=timezone.utc)
         await self.golem.start()
 
-        for cluster_id, cluster_class in self.dapp.nodes.items():
-            await self.start_cluster(cluster_id, cluster_class)
+        await self._load_payloads()
+
+        for service_name, service_descriptor in self.dapp.nodes.items():
+            cluster_class = await get_service(
+                service_name, service_descriptor, self._payloads
+            )
+            await self.start_cluster(service_name, cluster_class)
 
     async def start_cluster(self, cluster_name, cluster_class):
         """Start a single cluster for this dapp."""

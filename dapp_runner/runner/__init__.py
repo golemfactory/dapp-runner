@@ -5,7 +5,7 @@ from pathlib import Path
 
 from yapapi.log import enable_default_logger
 
-from dapp_runner.descriptor import Config, Dapp
+from dapp_runner.descriptor import Config, DappDescriptor
 from dapp_runner._util import _print_env_info
 
 from .runner import Runner
@@ -17,8 +17,8 @@ async def _run_app(
     config_dict: dict, dapp_dict: dict, data: Path, log: Path, state: Path
 ):
     """Run the dapp using the Runner."""
-    config = await Config.new(config_dict)
-    dapp = await Dapp.new(dapp_dict)
+    config = Config.load(config_dict)
+    dapp = DappDescriptor.load(dapp_dict)
 
     enable_default_logger(
         log_file=str(log),

@@ -40,7 +40,7 @@ pytest-cov = "^3.0.0"
 [tool.poe.tasks]
 code_check = "flake8"
 code_format = "black --check --diff ."
-code_typing = "mypy --install-types --non-interactive --ignore-missing-imports --check-untyped-defs ."
+code_typing = "mypy --install-types --non-interactive --ignore-missing-imports --check-untyped-defs --warn-unused-ignores --show-error-codes ."
 all_checks = ["code_check", "code_format", "code_typing"]
 unit_test = "pytest --cov --cov-report html --cov-report term -sv tests/unit"
 test = ["unit_test", "all_checks"]

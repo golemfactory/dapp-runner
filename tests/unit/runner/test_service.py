@@ -5,7 +5,7 @@ from unittest.mock import Mock
 from yapapi.ctx import WorkContext, Script
 from yapapi.script import Run
 
-from dapp_runner.descriptor.service import DappService
+from dapp_runner.runner.service import DappService
 
 
 @pytest.fixture
@@ -19,8 +19,10 @@ def mock_work_context():  # noqa
     [
         (
             (
-                "/bin/test",
-                "blah",
+                [
+                    "/bin/test",
+                    "blah",
+                ],
             ),
             [Run("/bin/test", "blah")],
         ),
