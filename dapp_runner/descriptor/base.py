@@ -1,7 +1,7 @@
 """Dapp runner descriptor base classes."""
 from dataclasses import dataclass, fields, Field
 
-from typing import Generic, Type, TypeVar, Dict, List, Any
+from typing import Generic, Type, TypeVar, Dict, List, Any, Union
 
 
 class DescriptorError(Exception):
@@ -34,7 +34,7 @@ class BaseDescriptor(Generic[DescriptorType]):
                 return value_type(value)
         except Exception as e:
             raise DescriptorError(
-                f"{cls.__name__}`{desc}`: {e.__class__.__name__}: {str(e)}"
+                f"{cls.__name__}.{desc}: {e.__class__.__name__}: {str(e)}"
             )
 
     @classmethod
@@ -92,9 +92,11 @@ class BaseDescriptor(Generic[DescriptorType]):
                     f.name, f, f.type, descriptor_value
                 )
 
-            # field is an Optional simple type
+            # field is an Optional[simple type] -> Union[type, NoneType]
             elif (
-                str(f.type).startswith("typing.Optional")
+                getattr(f.type, "__origin__", None) is Union
+                and len(f.type.__args__) == 2
+                and f.type.__args__[1] is type(None)  # noqa
                 and type(f.type.__args__[0]) is type
             ):
                 resolved_kwargs[f.name] = cls._instantiate_value(
@@ -102,11 +104,11 @@ class BaseDescriptor(Generic[DescriptorType]):
                 )
 
             # field is a `Dict`
-            elif getattr(f.type, "__origin__", None) == dict:
+            elif getattr(f.type, "__origin__", None) is dict:
                 resolved_kwargs[f.name] = cls._load_dict(f, descriptor_value)  # type: ignore [arg-type] # noqa
 
             # field is a `List`
-            elif getattr(f.type, "__origin__", None) == list:
+            elif getattr(f.type, "__origin__", None) is list:
                 resolved_kwargs[f.name] = cls._load_list(f, descriptor_value)  # type: ignore [arg-type] # noqa
 
             else:
