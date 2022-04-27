@@ -7,7 +7,7 @@ from yapapi.services import Service
 class DappService(Service):
     """Yapapi Service definition for the Dapp Runner services."""
 
-    entrypoint: List[Union[List[str], str]]
+    entrypoint: Union[List[List[str]], List[str]]
 
     async def start(self):
         """Start the service on a given provider."""
@@ -18,7 +18,7 @@ class DappService(Service):
             yield script
 
         if self.entrypoint:
-            script = self._ctx.new_script()
+            script = self._ctx.new_script()  # type: ignore  # noqa - it's asserted in super().start()
             if isinstance(self.entrypoint[0], str):
                 # only one command to execute
                 script.run(*self.entrypoint)
