@@ -5,7 +5,6 @@ to a specification in the dapp's descriptor.
 """
 from datetime import datetime
 import logging
-import os
 from pathlib import Path
 from typing import Tuple
 
@@ -82,12 +81,6 @@ def start(
     """Start a dApp based on the provided configuration and set of descriptor files."""
     dapp_dict = load_yamls(*descriptors)
     config_dict = load_yamls(config)
-
-    # TODO this should be applied uniformly across any fields,
-    # for now, making an exception for the app key
-    appkey = config_dict["yagna"].get("app_key", "")
-    if appkey.startswith("$"):
-        config_dict["yagna"]["app_key"] = os.environ[appkey[1:]]
 
     # TODO: perhaps include some name from the descriptor in the run ID?
     prefix = shortuuid.ShortUUID().random(length=6)

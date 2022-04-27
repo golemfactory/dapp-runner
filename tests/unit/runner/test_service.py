@@ -1,11 +1,13 @@
 """Unit tests for dapp_runner.descriptor.service."""
+import asyncio
+
 import pytest
 from unittest.mock import Mock
 
 from yapapi.ctx import WorkContext, Script
 from yapapi.script import Run
 
-from dapp_runner.descriptor.service import DappService
+from dapp_runner.runner.service import DappService
 
 
 @pytest.fixture
@@ -19,8 +21,10 @@ def mock_work_context():  # noqa
     [
         (
             (
-                "/bin/test",
-                "blah",
+                [
+                    "/bin/test",
+                    "blah",
+                ],
             ),
             [Run("/bin/test", "blah")],
         ),
@@ -36,8 +40,17 @@ async def test_service_entrypoint(mock_work_context, entrypoint, expected_script
     service._ctx = mock_work_context
     service.entrypoint = entrypoint
     scripts = []
-    async for s in service.start():
+    gen = service.start()
+
+    s = await gen.__anext__()
+    while s:
         scripts.append(s)
+        future_results = asyncio.get_event_loop().create_future()
+        future_results.set_result(asyncio.sleep(0.01))
+        try:
+            s = await gen.asend(future_results)
+        except StopAsyncIteration:
+            s = None
 
     assert len(scripts) == 2
 

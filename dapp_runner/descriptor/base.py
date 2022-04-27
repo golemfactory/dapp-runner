@@ -1,7 +1,7 @@
 """Dapp runner descriptor base classes."""
 from dataclasses import dataclass, fields, Field
 
-from typing import Generic, Type, TypeVar, Dict, Any
+from typing import Generic, Type, TypeVar, Dict, List, Any, Union
 
 
 class DescriptorError(Exception):
@@ -21,50 +21,99 @@ class BaseDescriptor(Generic[DescriptorType]):
     part of the descriptor tree.
     """
 
-    class _Factory:
-        """Helper class handling the factory definitions in the descriptor fields."""
-
-        def __init__(self, f: Field, resolved_kwargs: Dict[str, Any]):
-            self.f = f
-            self.resolved_kwargs = resolved_kwargs
-
-        def __bool__(self):
-            return "factory" in self.f.metadata
-
-        async def resolve(self, value):
-            required = {
-                k: v
-                for k, v in self.resolved_kwargs.items()
-                if k in self.f.metadata.get("requires", [])
-            }
-            return await self.f.metadata["factory"].resolve(**value, **required)
+    @classmethod
+    def _instantiate_value(cls, desc: str, f: Field, value_type, value):
+        try:
+            if type(value_type) is type and issubclass(value_type, BaseDescriptor):
+                return value_type.load(value)
+            elif f.metadata.get("factory"):
+                return f.metadata["factory"](value)
+            elif type(value) is dict:
+                return value_type(**value)
+            else:
+                return value_type(value)
+        except Exception as e:
+            raise DescriptorError(
+                f"{cls.__name__}.{desc}: {e.__class__.__name__}: {str(e)}"
+            )
 
     @classmethod
-    async def new(
+    def _load_dict(cls, f: Field, descriptor_value: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            entry_type = getattr(f.type, "__args__", None)[
+                1
+            ]  # type: ignore [index] # noqa
+        except (TypeError, IndexError):
+            entry_type = None
+
+        # is the dict's value type defined as a simple type?
+        if type(entry_type) is type:
+            out = {}
+            for k, v in descriptor_value.items():
+                out[k] = cls._instantiate_value(f"{f.name}[{k}]", f, entry_type, v)
+            return out
+        return descriptor_value
+
+    @classmethod
+    def _load_list(cls, f: Field, descriptor_value: List[Any]) -> List[Any]:
+        try:
+            entry_type = getattr(f.type, "__args__", None)[
+                0
+            ]  # type: ignore [index] # noqa
+        except (TypeError, IndexError):
+            entry_type = None
+
+        # is the list's value type defined as a simple type?
+        if type(entry_type) is type:
+            out = []
+            for i in range(len(descriptor_value)):
+                v = descriptor_value[i]
+                out.append(cls._instantiate_value(f"{f.name}[{i}]", f, entry_type, v))
+            return out
+        return descriptor_value
+
+    @classmethod
+    def load(
         cls: Type[DescriptorType], descriptor_dict: Dict[str, Any]
     ) -> DescriptorType:
-        """Create a new object from its descriptor."""
+        """Create a new descriptor object from its dictionary representation."""
         resolved_kwargs: Dict[str, Any] = {}
         for f in fields(cls):
+            # if the fields value is not provided in the descriptor, we're leaving
+            # that to the instantiated class' `__init__` to warn about that
+            if f.name not in descriptor_dict.keys():
+                continue
+
             descriptor_value = descriptor_dict.get(f.name)
-            if not descriptor_value:
-                break
-            factory = cls._Factory(f, resolved_kwargs)
+
+            # field is a simple type
             if type(f.type) is type:
-                if factory:
-                    resolved_kwargs[f.name] = await factory.resolve(descriptor_value)
-                else:
-                    resolved_kwargs[f.name] = f.type(**descriptor_value)
-            elif getattr(f.type, "__origin__", None) == dict:
-                if not factory:
-                    resolved_kwargs[f.name] = descriptor_value
-                else:
-                    resolved_kwargs[f.name] = {}
-                    for k, v in descriptor_value.items():
-                        resolved_kwargs[f.name][k] = await factory.resolve(v)
+                resolved_kwargs[f.name] = cls._instantiate_value(
+                    f.name, f, f.type, descriptor_value
+                )
+
+            # field is an Optional[simple type] -> Union[type, NoneType]
+            elif (
+                getattr(f.type, "__origin__", None) is Union
+                and len(f.type.__args__) == 2
+                and f.type.__args__[1] is type(None)  # noqa
+                and type(f.type.__args__[0]) is type
+            ):
+                resolved_kwargs[f.name] = cls._instantiate_value(
+                    f.name, f, f.type.__args__[0], descriptor_value
+                )
+
+            # field is a `Dict`
+            elif getattr(f.type, "__origin__", None) is dict:
+                resolved_kwargs[f.name] = cls._load_dict(f, descriptor_value)  # type: ignore [arg-type] # noqa
+
+            # field is a `List`
+            elif getattr(f.type, "__origin__", None) is list:
+                resolved_kwargs[f.name] = cls._load_list(f, descriptor_value)  # type: ignore [arg-type] # noqa
+
             else:
                 raise NotImplementedError(
-                    f"Unimplemented handler for type {f.type.__origin__}"
+                    f"{cls.__name__}.{f.name}: Unimplemented handler for {f.type}"
                 )
 
         unexpected_keys = set(descriptor_dict.keys()) - set(f.name for f in fields(cls))
@@ -72,4 +121,4 @@ class BaseDescriptor(Generic[DescriptorType]):
             raise DescriptorError(
                 f"Unexpected keys: `{unexpected_keys}` for `{cls.__name__}`"
             )
-        return cls(**resolved_kwargs)  # type: ignore
+        return cls(**resolved_kwargs)

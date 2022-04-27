@@ -1,4 +1,5 @@
 import asyncio
+from colors import yellow, cyan, magenta
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
@@ -7,14 +8,8 @@ from typing import Callable, Dict, List, TextIO
 
 from yapapi.log import enable_default_logger
 
-from dapp_runner.descriptor import Config, Dapp
-from dapp_runner._util import (
-    _print_env_info,
-    TEXT_COLOR_CYAN,
-    TEXT_COLOR_YELLOW,
-    TEXT_COLOR_DEFAULT,
-    TEXT_COLOR_MAGENTA,
-)
+from dapp_runner.descriptor import Config, DappDescriptor
+from dapp_runner._util import _print_env_info
 
 from .runner import Runner
 
@@ -61,8 +56,8 @@ async def _run_app(
     silent=False,
 ):
     """Run the dapp using the Runner."""
-    config = await Config.new(config_dict)
-    dapp = await Dapp.new(dapp_dict)
+    config = Config.load(config_dict)
+    dapp = DappDescriptor.load(dapp_dict)
 
     enable_default_logger(
         log_file=str(log),
@@ -117,13 +112,13 @@ async def _run_app(
                     _update_stream(
                         STATE_PRINT_INTERVAL,
                         sys.stdout,
-                        lambda: f"{TEXT_COLOR_CYAN}{json.dumps(r.dapp_state)}{TEXT_COLOR_DEFAULT}",
+                        lambda: cyan({json.dumps(r.dapp_state)}),
                     ),
                     _update_stream(
                         DATA_PRINT_INTERVAL,
                         sys.stdout,
-                        lambda: f"{TEXT_COLOR_MAGENTA}{json.dumps(get_data('print'))}{TEXT_COLOR_DEFAULT}",
-                        void_value=f"{TEXT_COLOR_MAGENTA}{json.dumps(None)}{TEXT_COLOR_DEFAULT}",
+                        lambda: magenta(json.dumps(get_data("print"))),
+                        void_value=magenta(json.dumps(None)),
                     ),
                 ]
             ]
@@ -142,7 +137,7 @@ async def _run_app(
                 f"Failed to start instances before {STARTING_TIMEOUT} elapsed."
             )
 
-        print(f"{TEXT_COLOR_YELLOW}Dapp started.{TEXT_COLOR_DEFAULT}")
+        print(yellow("Dapp started."))
 
         while r.dapp_started:
             await asyncio.sleep(1)
@@ -150,7 +145,7 @@ async def _run_app(
     except asyncio.CancelledError:
         pass
     finally:
-        print(f"{TEXT_COLOR_YELLOW}Stopping the dapp...{TEXT_COLOR_DEFAULT}")
+        print(yellow("Stopping the dapp..."))
         await r.stop()
 
         for t in stream_tasks:
@@ -178,10 +173,10 @@ def start_runner(
         try:
             loop.run_until_complete(task)
         except KeyboardInterrupt:
-            print(f"{TEXT_COLOR_YELLOW}Shutting down ...{TEXT_COLOR_DEFAULT}")
+            print(yellow("Shutting down ..."))
             task.cancel()
             try:
                 loop.run_until_complete(task)
-                print(f"{TEXT_COLOR_YELLOW}Shutdown completed{TEXT_COLOR_DEFAULT}")
+                print(yellow("Shutdown completed"))
             except (asyncio.CancelledError, KeyboardInterrupt):
                 pass

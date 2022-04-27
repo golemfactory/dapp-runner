@@ -1,13 +1,16 @@
 """Main Dapp Runner module."""
 from datetime import datetime, timezone
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Generator, Any
 
 from yapapi import Golem
 from yapapi.events import CommandExecuted
-from yapapi.script.command import Command
+from yapapi.payload import Payload
 from yapapi.services import Cluster, ServiceState
 
-from dapp_runner.descriptor import Config, Dapp
+from dapp_runner.descriptor import Config, DappDescriptor
+
+from .payload import get_payload
+from .service import get_service
 
 
 class Runner:
@@ -18,12 +21,14 @@ class Runner:
     """
 
     config: Config
-    dapp: Dapp
+    dapp: DappDescriptor
     golem: Golem
     clusters: Dict[str, Cluster]
     commissioning_time: Optional[datetime]
 
-    def __init__(self, config: Config, dapp: Dapp):
+    _payloads: Dict[str, Payload]
+
+    def __init__(self, config: Config, dapp: DappDescriptor):
         self.config = config
         self.dapp = dapp
 
@@ -36,14 +41,24 @@ class Runner:
         )
 
         self.clusters = {}
+        self._payloads = {}
+
+    async def _load_payloads(self):
+        for name, desc in self.dapp.payloads.items():
+            self._payloads[name] = await get_payload(desc)
 
     async def start(self):
         """Start the Golem engine and the dapp."""
         self.commissioning_time = datetime.now(tz=timezone.utc)
         await self.golem.start()
 
-        for cluster_id, cluster_class in self.dapp.nodes.items():
-            await self.start_cluster(cluster_id, cluster_class)
+        await self._load_payloads()
+
+        for service_name, service_descriptor in self.dapp.nodes.items():
+            cluster_class = await get_service(
+                service_name, service_descriptor, self._payloads
+            )
+            await self.start_cluster(service_name, cluster_class)
 
     async def start_cluster(self, cluster_name, cluster_class):
         """Start a single cluster for this dapp."""
@@ -95,7 +110,8 @@ class Runner:
             ]
         )
 
-    def _process_data_message(self, message: List[CommandExecuted]) -> list:
+    @staticmethod
+    def _process_data_message(message: List[CommandExecuted]) -> Generator:
         for e in message:
             assert isinstance(e, CommandExecuted)
             yield {
@@ -106,12 +122,13 @@ class Runner:
             }
 
     def dapp_data(self):
+        """Return data messages accumulated in the Dapp instances."""
         out_messages = {}
         for cluster_id, cluster in self.clusters.items():
             cluster_messages = {}
             for idx in range(len(cluster.instances)):
                 instance = cluster.instances[idx]
-                instance_messages = []
+                instance_messages: List[Dict[str, Any]] = []
                 while True:
                     signal = instance.receive_message_nowait()
                     if not signal:

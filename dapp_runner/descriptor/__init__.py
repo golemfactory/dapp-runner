@@ -1,9 +1,9 @@
 from .base import DescriptorError
-from .dapp import Dapp
+from .dapp import DappDescriptor
 from .config import Config
 
 __all__ = (
-    "Dapp",
+    "DappDescriptor",
     "Config",
     "DescriptorError",
 )
