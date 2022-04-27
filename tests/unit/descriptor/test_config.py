@@ -43,5 +43,5 @@ async def test_config_descriptor(descriptor_dict, error):
     except Exception as e:  # noqa
         if not error:
             raise
-        assert str(e).startswith(str(error))
+        assert str(error) in str(e)
         assert type(e) == type(error)
