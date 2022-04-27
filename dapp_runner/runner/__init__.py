@@ -1,11 +1,12 @@
 import asyncio
+from colors import yellow
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from yapapi.log import enable_default_logger
 
 from dapp_runner.descriptor import Config, Dapp
-from dapp_runner._util import _print_env_info, TEXT_COLOR_YELLOW, TEXT_COLOR_DEFAULT
+from dapp_runner._util import _print_env_info
 
 from .runner import Runner
 
@@ -45,7 +46,7 @@ async def _run_app(
                 f"Failed to start instances before {STARTING_TIMEOUT} elapsed."
             )
 
-        print(f"{TEXT_COLOR_YELLOW}Dapp started.{TEXT_COLOR_DEFAULT}")
+        print(yellow("Dapp started."))
 
         while r.dapp_started:
             print(r.dapp_state)
@@ -54,7 +55,7 @@ async def _run_app(
     except asyncio.CancelledError:
         pass
     finally:
-        print(f"{TEXT_COLOR_YELLOW}Stopping the dapp...{TEXT_COLOR_DEFAULT}")
+        print(yellow("Stopping the dapp..."))
         await r.stop()
 
 
@@ -69,10 +70,10 @@ def start_runner(
     try:
         loop.run_until_complete(task)
     except KeyboardInterrupt:
-        print(f"{TEXT_COLOR_YELLOW}Shutting down ...{TEXT_COLOR_DEFAULT}")
+        print(yellow("Shutting down ..."))
         task.cancel()
         try:
             loop.run_until_complete(task)
-            print(f"{TEXT_COLOR_YELLOW}Shutdown completed{TEXT_COLOR_DEFAULT}")
+            print(yellow("Shutdown completed"))
         except (asyncio.CancelledError, KeyboardInterrupt):
             pass
