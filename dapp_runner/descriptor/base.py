@@ -86,7 +86,7 @@ class BaseDescriptor(Generic[DescriptorType]):
 
             descriptor_value = descriptor_dict.get(f.name)
 
-            # field is a simple type
+            # field is a simple type (i.e. not a `typing` type hint)
             if type(f.type) is type:
                 resolved_kwargs[f.name] = cls._instantiate_value(
                     f.name, f, f.type, descriptor_value

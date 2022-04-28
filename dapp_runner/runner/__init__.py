@@ -21,7 +21,7 @@ async def _run_app(
     dapp = DappDescriptor.load(dapp_dict)
 
     enable_default_logger(
-        log_file=str(log),
+        log_file=str(log.resolve()),
         debug_activity_api=True,
         debug_market_api=True,
         debug_payment_api=True,

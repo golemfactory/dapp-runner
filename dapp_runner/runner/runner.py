@@ -67,7 +67,7 @@ class Runner:
     def dapp_state(self) -> dict:
         """Return the state of the dapp.
 
-        State of the dapp is a dictionary containing the state of the all the
+        State of the dapp is a dictionary containing the state of all the
         Clusters and their Service instances comprising the dapp.
         """
 
@@ -81,7 +81,7 @@ class Runner:
         """Return True if the dapp has been started, False otherwise.
 
         Dapp is considered started if all instances in all commissioned service
-        clusters have been started and are remaining running.
+        clusters have been started and remain running.
         """
 
         return all(
