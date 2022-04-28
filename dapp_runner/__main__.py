@@ -1,4 +1,8 @@
-"""Main entry point to `dapp_runner`."""
+"""Golem dapp runner.
+
+Utilizes yapapi and yagna to spawn complete decentralized apps on Golem, according
+to a specification in the dapp's descriptor.
+"""
 from datetime import datetime
 import logging
 from pathlib import Path
@@ -8,8 +12,10 @@ import appdirs
 import click
 import shortuuid
 
+
 from dapp_runner import MODULE_AUTHOR, MODULE_NAME
 from dapp_runner.descriptor.parser import load_yamls
+from dapp_runner.runner import start_runner
 
 
 logger = logging.getLogger(__name__)
@@ -20,9 +26,13 @@ def _cli():
     pass
 
 
-def _get_run_dir(run_id: str) -> Path:
+def _get_data_dir() -> Path:
     data_dir = appdirs.user_data_dir(MODULE_NAME, MODULE_AUTHOR)
-    app_dir = Path(data_dir) / run_id
+    return Path(data_dir)
+
+
+def _get_run_dir(run_id: str) -> Path:
+    app_dir = _get_data_dir() / run_id
     app_dir.mkdir(exist_ok=True, parents=True)
     return app_dir
 
@@ -49,8 +59,8 @@ def _get_run_dir(run_id: str) -> Path:
 @click.option(
     "--config",
     "-c",
-    required=True,
     type=Path,
+    required=True,
     help="Path to the file containing yagna-specific config.",
 )
 @click.argument(
@@ -61,11 +71,12 @@ def _get_run_dir(run_id: str) -> Path:
 )
 def start(
     descriptors: Tuple[Path],
+    config: Path,
     **kwargs,
 ) -> None:
     """Start a dApp based on the provided configuration and set of descriptor files."""
-    # TODO: handle the result somehow
-    load_yamls(*descriptors)
+    dapp_dict = load_yamls(*descriptors)
+    config_dict = load_yamls(config)
 
     # TODO: perhaps include some name from the descriptor in the run ID?
     prefix = shortuuid.ShortUUID().random(length=6)
@@ -77,8 +88,9 @@ def start(
     for param_name in ["data", "log", "state"]:
         param_value = kwargs[param_name]
         if not param_value:
-            # TODO: pass these arguments further
             kwargs[param_name] = app_dir / param_name
+
+    start_runner(config_dict, dapp_dict, **kwargs)
 
 
 if __name__ == "__main__":

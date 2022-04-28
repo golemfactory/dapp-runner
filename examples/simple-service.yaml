@@ -2,24 +2,11 @@ payloads:
   simple-service:
     runtime: "vm"
     params:
-      image: "8b11df59f84358d47fc6776d0bb7290b0054c15ded2d6f54cf634488"
+      image_hash: "8b11df59f84358d47fc6776d0bb7290b0054c15ded2d6f54cf634488"
 nodes:
   simple-service:
     payload: "simple-service"
-    exec:
-      start:
-        - run:
-          - "/golem/run/simulate_observations_ctl.py"
-          - "--start"
-      run:
-        - run:
-          - "/bin/sh"
-          - "-c"
-          - "sleep 105"
-        - run:
-          - "/golem/run/simple_service.py"
-          - "--stats"
-      stop:
-        - run:
-          - "/golem/run/simulate_observations_ctl.py"
-          - "--start"
+    entrypoint:
+        - ["/golem/run/simulate_observations_ctl.py", "--start"]
+        - ["/bin/sh", "-c", "sleep 15" ]
+        - [ "/golem/run/simple_service.py", "--stats"]
