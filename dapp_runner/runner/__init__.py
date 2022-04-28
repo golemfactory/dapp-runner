@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import sys
-from typing import Callable, Dict, List, TextIO
+from typing import TextIO
 
 from yapapi.log import enable_default_logger
 
@@ -12,39 +12,9 @@ from dapp_runner.descriptor import Config, DappDescriptor
 from dapp_runner._util import _print_env_info
 
 from .runner import Runner
+from .streams import RunnerStreamer, StreamType
 
 STARTING_TIMEOUT = timedelta(minutes=4)
-STATE_INTERVAL = timedelta(seconds=1)
-STATE_PRINT_INTERVAL = timedelta(seconds=1)
-DATA_QUEUE_INTERVAL = timedelta(seconds=1)
-DATA_INTERVAL = timedelta(seconds=1)
-DATA_PRINT_INTERVAL = timedelta(seconds=1)
-
-
-async def _update_stream(
-    interval: timedelta,
-    stream: TextIO,
-    fn: Callable,
-    only_changes=True,
-    void_value=None,
-):
-    previous_output = void_value
-
-    def write_stream():
-        nonlocal previous_output
-
-        output = fn()
-        if output != void_value:
-            if not only_changes or output != previous_output:
-                stream.write(str(output) + "\n")
-            previous_output = output
-
-    try:
-        while True:
-            write_stream()
-            await asyncio.sleep(interval.total_seconds())
-    except asyncio.CancelledError:
-        write_stream()
 
 
 async def _run_app(
@@ -71,57 +41,17 @@ async def _run_app(
     _print_env_info(r.golem)
 
     await r.start()
-    data_queues: Dict[str, asyncio.Queue] = {
-        "print": asyncio.Queue(),
-        "stream": asyncio.Queue(),
-    }
-
-    async def feed_data_queues():
-        while True:
-            data = r.dapp_data()
-            if data:
-                for q in data_queues.values():
-                    q.put_nowait(data)
-            await asyncio.sleep(DATA_QUEUE_INTERVAL.total_seconds())
-
-    def get_data(queue_name: str):
-        try:
-            return data_queues[queue_name].get_nowait()
-        except asyncio.QueueEmpty:
-            pass
-
-    stream_tasks: List[asyncio.Task] = [
-        asyncio.create_task(t)
-        for t in [
-            feed_data_queues(),
-            _update_stream(STATE_INTERVAL, state_f, lambda: json.dumps(r.dapp_state)),
-            _update_stream(
-                DATA_INTERVAL,
-                data_f,
-                lambda: json.dumps(get_data("stream")),
-                void_value=json.dumps(None),
-            ),
-        ]
-    ]
+    streamer = RunnerStreamer(r)
+    streamer.start()
+    streamer.register_stream(StreamType.STATE, state_f, lambda msg: json.dumps(msg))
+    streamer.register_stream(StreamType.DATA, data_f, lambda msg: json.dumps(msg))
 
     if not silent:
-        stream_tasks.extend(
-            [
-                asyncio.create_task(t)
-                for t in [
-                    _update_stream(
-                        STATE_PRINT_INTERVAL,
-                        sys.stdout,
-                        lambda: cyan({json.dumps(r.dapp_state)}),
-                    ),
-                    _update_stream(
-                        DATA_PRINT_INTERVAL,
-                        sys.stdout,
-                        lambda: magenta(json.dumps(get_data("print"))),
-                        void_value=magenta(json.dumps(None)),
-                    ),
-                ]
-            ]
+        streamer.register_stream(
+            StreamType.STATE, sys.stdout, lambda msg: cyan(json.dumps(msg))
+        )
+        streamer.register_stream(
+            StreamType.DATA, sys.stdout, lambda msg: magenta(json.dumps(msg))
         )
 
     assert r.commissioning_time  # sanity check for mypy
@@ -147,10 +77,7 @@ async def _run_app(
     finally:
         print(yellow("Stopping the dapp..."))
         await r.stop()
-
-        for t in stream_tasks:
-            t.cancel()
-        await asyncio.gather(*stream_tasks)
+        await streamer.stop()
 
 
 def start_runner(

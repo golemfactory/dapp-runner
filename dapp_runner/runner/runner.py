@@ -1,6 +1,7 @@
 """Main Dapp Runner module."""
+import asyncio
 from datetime import datetime, timezone
-from typing import Optional, Dict, List, Generator, Any
+from typing import Optional, Dict, List
 
 from yapapi import Golem
 from yapapi.events import CommandExecuted
@@ -10,7 +11,12 @@ from yapapi.services import Cluster, ServiceState
 from dapp_runner.descriptor import Config, DappDescriptor
 
 from .payload import get_payload
-from .service import get_service
+from .service import (
+    get_service,
+    DappService,
+    DappServiceMessage,
+    DappServiceMessageType,
+)
 
 
 class Runner:
@@ -27,6 +33,10 @@ class Runner:
     commissioning_time: Optional[datetime]
 
     _payloads: Dict[str, Payload]
+    _tasks: List[asyncio.Task]
+
+    data_queue: asyncio.Queue
+    state_queue: asyncio.Queue
 
     def __init__(self, config: Config, dapp: DappDescriptor):
         self.config = config
@@ -42,6 +52,9 @@ class Runner:
 
         self.clusters = {}
         self._payloads = {}
+        self._tasks = []
+        self.data_queue = asyncio.Queue()
+        self.state_queue = asyncio.Queue()
 
     async def _load_payloads(self):
         for name, desc in self.dapp.payloads.items():
@@ -58,11 +71,22 @@ class Runner:
             cluster_class = await get_service(
                 service_name, service_descriptor, self._payloads
             )
-            await self.start_cluster(service_name, cluster_class)
+            cluster = await self.start_cluster(service_name, cluster_class)
+
+            # launch queue listeners for all the service instances
+            for idx in range(len(cluster.instances)):
+                s = cluster.instances[idx]
+                self._tasks.append(
+                    asyncio.create_task(
+                        self._listen_service_queue(service_name, idx, s)
+                    )
+                )
 
     async def start_cluster(self, cluster_name, cluster_class):
         """Start a single cluster for this dapp."""
-        self.clusters[cluster_name] = await self.golem.run_service(cluster_class)
+        cluster = await self.golem.run_service(cluster_class)
+        self.clusters[cluster_name] = cluster
+        return cluster
 
     @property
     def dapp_state(self) -> dict:
@@ -110,36 +134,43 @@ class Runner:
             ]
         )
 
+    async def _listen_service_queue(
+        self, cluster_name: str, idx: int, service: DappService
+    ):
+        """Pass instance messages to one of the Runner's queues.
+
+        Listen to the out queue of a specific service instance and reflect the received
+        message in either the data or the state queue in the Runner.
+        """
+        while True:
+            try:
+                signal = await service.receive_message()
+            except asyncio.CancelledError:
+                return
+
+            msg: DappServiceMessage = signal.message
+
+            if msg.msg_type == DappServiceMessageType.STATE:
+                self.state_queue.put_nowait(self.dapp_state)
+            elif msg.msg_type == DappServiceMessageType.DATA:
+                self.data_queue.put_nowait(
+                    {cluster_name: {idx: self._process_data_message(msg.msg)}}
+                )
+
     @staticmethod
-    def _process_data_message(message: List[CommandExecuted]) -> Generator:
+    def _process_data_message(message: List[CommandExecuted]) -> List[Dict]:
+        commands_list = []
         for e in message:
             assert isinstance(e, CommandExecuted)
-            yield {
-                "command": e.command.evaluate(),
-                "success": e.success,
-                "stdout": e.stdout,
-                "stderr": e.stderr,
-            }
-
-    def dapp_data(self):
-        """Return data messages accumulated in the Dapp instances."""
-        out_messages = {}
-        for cluster_id, cluster in self.clusters.items():
-            cluster_messages = {}
-            for idx in range(len(cluster.instances)):
-                instance = cluster.instances[idx]
-                instance_messages: List[Dict[str, Any]] = []
-                while True:
-                    signal = instance.receive_message_nowait()
-                    if not signal:
-                        break
-                    instance_messages.extend(self._process_data_message(signal.message))
-                if instance_messages:
-                    cluster_messages[idx] = instance_messages
-            if cluster_messages:
-                out_messages[cluster_id] = cluster_messages
-        if out_messages:
-            return out_messages
+            commands_list.append(
+                {
+                    "command": e.command.evaluate(),
+                    "success": e.success,
+                    "stdout": e.stdout,
+                    "stderr": e.stderr,
+                }
+            )
+        return commands_list
 
     def _is_cluster_state(self, cluster_id: str, state: ServiceState) -> bool:
         """Return True if the state of all instances in the cluster is `state`."""
@@ -147,7 +178,16 @@ class Runner:
 
     async def stop(self):
         """Stop the dapp and the Golem engine."""
+        service_tasks: List[asyncio.Task] = []
+
         for cluster in self.clusters.values():
             cluster.stop()
 
+            for s in cluster.instances:
+                service_tasks.extend(s._tasks)
+
         await self.golem.stop()
+        await asyncio.gather(*service_tasks)
+        for t in self._tasks:
+            t.cancel()
+        await asyncio.gather(*self._tasks)
