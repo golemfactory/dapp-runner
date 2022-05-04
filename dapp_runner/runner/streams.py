@@ -12,9 +12,10 @@ Msg = TypeVar("Msg")
 class RunnerStream(Generic[Msg]):
     """Dapp Runner's output stream manager."""
 
-    queue: asyncio.Queue[Msg]
+    queue: asyncio.Queue
     stream: TextIO
-    process_callback: Optional[Callable[[Msg], Any]] = None
+    process_callback: Optional[Callable] = None
+    """callback processing the queue messages"""
 
     async def update(self):
         """Await the queue and write to the output stream."""
