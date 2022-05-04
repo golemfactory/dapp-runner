@@ -4,14 +4,13 @@ from datetime import datetime, timezone
 from typing import Optional, Dict, List
 
 from yapapi import Golem
-from yapapi.events import CommandExecuted
 from yapapi.payload import Payload
 from yapapi.services import Cluster, ServiceState
 
 from dapp_runner.descriptor import Config, DappDescriptor
 
 from .payload import get_payload
-from .service import get_service, DappService
+from .service import get_service, DataReceivedEvent
 
 
 class Runner:
@@ -52,6 +51,9 @@ class Runner:
         self.state_queue = asyncio.Queue()
 
     async def _monitor_state_changes(self):
+        #   NOTE: in the future `yapapi` should emit a ServiceStateChanged event whenever service
+        #         changes state and then we'll remove the loop/task and replace it with
+        #         _state_event_consumer, just like the _data_event_consumer below
         prev_state = self.dapp_state
         while True:
             await asyncio.sleep(0.01)
@@ -59,6 +61,13 @@ class Runner:
             if new_state != prev_state:
                 self.state_queue.put_nowait(new_state)
                 prev_state = new_state
+
+    def _data_event_consumer(self, event: DataReceivedEvent) -> None:
+        cluster_name = next(name for name, cluster in self.clusters.items() if cluster is event.service.cluster)
+        instance_idx = event.service.cluster.instances.index(event.service)
+        self.data_queue.put_nowait(
+            {cluster_name: {instance_idx: event.data}}
+        )
 
     async def _load_payloads(self):
         for name, desc in self.dapp.payloads.items():
@@ -68,6 +77,7 @@ class Runner:
         """Start the Golem engine and the dapp."""
         self.commissioning_time = datetime.now(tz=timezone.utc)
         self._tasks.append(asyncio.create_task(self._monitor_state_changes()))
+        self.golem.add_event_consumer(self._data_event_consumer, [DataReceivedEvent])
         await self.golem.start()
 
         await self._load_payloads()
@@ -76,18 +86,7 @@ class Runner:
             cluster_class = await get_service(
                 service_name, service_descriptor, self._payloads
             )
-            cluster = await self.start_cluster(service_name, cluster_class)
-
-            # launch queue listeners for all the service instances
-            for idx in range(len(cluster.instances)):
-                s = cluster.instances[idx]
-                self._tasks.extend(
-                    [
-                        asyncio.create_task(
-                            self._listen_data_queue(service_name, idx, s)
-                        ),
-                    ]
-                )
+            await self.start_cluster(service_name, cluster_class)
 
     async def start_cluster(self, cluster_name, cluster_class):
         """Start a single cluster for this dapp."""
@@ -140,35 +139,6 @@ class Runner:
                 for cluster_id in self.clusters.keys()
             ]
         )
-
-    async def _listen_data_queue(
-        self, cluster_name: str, idx: int, service: DappService
-    ):
-        """Pass data messages from the instance to the Runner's queue."""
-        while True:
-            try:
-                msg = await service.data_queue.get()
-            except asyncio.CancelledError:
-                return
-
-            self.data_queue.put_nowait(
-                {cluster_name: {idx: self._process_data_message(msg)}}
-            )
-
-    @staticmethod
-    def _process_data_message(message: List[CommandExecuted]) -> List[Dict]:
-        commands_list = []
-        for e in message:
-            assert isinstance(e, CommandExecuted)
-            commands_list.append(
-                {
-                    "command": e.command.evaluate(),
-                    "success": e.success,
-                    "stdout": e.stdout,
-                    "stderr": e.stderr,
-                }
-            )
-        return commands_list
 
     def _is_cluster_state(self, cluster_id: str, state: ServiceState) -> bool:
         """Return True if the state of all instances in the cluster is `state`."""
