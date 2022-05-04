@@ -46,7 +46,11 @@ async def test_service_entrypoint(mock_work_context, entrypoint, expected_script
     while s:
         scripts.append(s)
         future_results = asyncio.get_event_loop().create_future()
-        future_results.set_result(asyncio.sleep(0.01))
+
+        # the mock is sent as the return value of the `yield script` in the service
+        mock_exescript_awaitable = asyncio.sleep(0.01)  # type: ignore [var-annotated]
+
+        future_results.set_result(mock_exescript_awaitable)
         try:
             s = await gen.asend(future_results)
         except StopAsyncIteration:

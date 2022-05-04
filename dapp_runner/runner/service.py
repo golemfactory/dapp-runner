@@ -1,13 +1,6 @@
 """yapapi Service bindings."""
 import asyncio
-import enum
-import sys
-from typing import Dict, List, Type, Any, Optional, NamedTuple
-
-if sys.version_info > (3, 8):
-    from typing import Literal
-else:
-    from typing_extensions import Literal
+from typing import Dict, List, Type, Optional
 
 
 from yapapi.payload import Payload
@@ -18,23 +11,6 @@ from dapp_runner.descriptor.dapp import ServiceDescriptor
 from .error import RunnerError
 
 
-class DappServiceMessageType(enum.Enum):
-    """Type of message emitted from the DappService."""
-
-    DATA = "data"
-    """data output"""
-
-    STATE = "state"
-    """state change"""
-
-
-class DappServiceMessage(NamedTuple):
-    """Outgoing Dapp service message."""
-
-    msg_type: Literal[DappServiceMessageType.DATA, DappServiceMessageType.STATE]
-    msg: Any
-
-
 class DappService(Service):
     """Yapapi Service definition for the Dapp Runner services."""
 
@@ -42,25 +18,30 @@ class DappService(Service):
     _previous_state: Optional[ServiceState] = None
     _tasks: List[asyncio.Task]
 
+    data_queue: asyncio.Queue
+    state_queue: asyncio.Queue
+
     def __init__(self):
         super().__init__()
-        self._report_state_chage()
         self._tasks = []
 
-    def _dapp_respond(self, msg_type: DappServiceMessageType, message: Any):
-        self._respond_nowait(DappServiceMessage(msg_type, message))
+        # initialize output queues
+        self.data_queue = asyncio.Queue()
+        self.state_queue = asyncio.Queue()
 
-    def _report_state_chage(self):
+        self._report_state_change()
+
+    def _report_state_change(self):
         state = self.state
         if self._previous_state != state:
-            self._dapp_respond(DappServiceMessageType.STATE, self.state)
+            self.state_queue.put_nowait(self.state)
             self._previous_state = state
 
     async def start(self):
         """Start the service on a given provider."""
 
         # initialize the state change report
-        self._report_state_chage()
+        self._report_state_change()
 
         # and start the task that will report termination of the service
         self._tasks.append(asyncio.create_task(self._wait_for_termination()))
@@ -75,18 +56,19 @@ class DappService(Service):
             for c in self.entrypoint:
                 script.run(*c)
             entrypoint_output = yield script
-            self._dapp_respond(DappServiceMessageType.DATA, await entrypoint_output)
+
+            self.data_queue.put_nowait(await entrypoint_output)
 
     async def run(self):
         """Report a state change after switching to `running`."""
-        self._report_state_chage()
+        self._report_state_change()
 
         async for script in super().run():
             yield script
 
     async def shutdown(self):
         """Report a state change after switching to `stopping`."""
-        self._report_state_chage()
+        self._report_state_change()
 
         async for script in super().shutdown():
             yield script
@@ -94,7 +76,7 @@ class DappService(Service):
     async def _wait_for_termination(self):
         while self._previous_state != ServiceState.terminated:
             await asyncio.sleep(1.0)
-            self._report_state_chage()
+            self._report_state_change()
 
 
 async def get_service(

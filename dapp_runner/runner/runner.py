@@ -11,12 +11,7 @@ from yapapi.services import Cluster, ServiceState
 from dapp_runner.descriptor import Config, DappDescriptor
 
 from .payload import get_payload
-from .service import (
-    get_service,
-    DappService,
-    DappServiceMessage,
-    DappServiceMessageType,
-)
+from .service import get_service, DappService
 
 
 class Runner:
@@ -76,10 +71,13 @@ class Runner:
             # launch queue listeners for all the service instances
             for idx in range(len(cluster.instances)):
                 s = cluster.instances[idx]
-                self._tasks.append(
-                    asyncio.create_task(
-                        self._listen_service_queue(service_name, idx, s)
-                    )
+                self._tasks.extend(
+                    [
+                        asyncio.create_task(self._listen_state_queue(s)),
+                        asyncio.create_task(
+                            self._listen_data_queue(service_name, idx, s)
+                        ),
+                    ]
                 )
 
     async def start_cluster(self, cluster_name, cluster_class):
@@ -134,28 +132,30 @@ class Runner:
             ]
         )
 
-    async def _listen_service_queue(
-        self, cluster_name: str, idx: int, service: DappService
-    ):
-        """Pass instance messages to one of the Runner's queues.
-
-        Listen to the out queue of a specific service instance and reflect the received
-        message in either the data or the state queue in the Runner.
-        """
+    async def _listen_state_queue(self, service: DappService):
+        """On a state change of the instance, update the Runner's state stream."""
         while True:
             try:
-                signal = await service.receive_message()
+                await service.state_queue.get()
             except asyncio.CancelledError:
                 return
 
-            msg: DappServiceMessage = signal.message
+            # on a state change, we're publishing the state of the whole dapp
+            self.state_queue.put_nowait(self.dapp_state)
 
-            if msg.msg_type == DappServiceMessageType.STATE:
-                self.state_queue.put_nowait(self.dapp_state)
-            elif msg.msg_type == DappServiceMessageType.DATA:
-                self.data_queue.put_nowait(
-                    {cluster_name: {idx: self._process_data_message(msg.msg)}}
-                )
+    async def _listen_data_queue(
+        self, cluster_name: str, idx: int, service: DappService
+    ):
+        """Pass data messages from the instance to the Runner's queue."""
+        while True:
+            try:
+                msg = await service.data_queue.get()
+            except asyncio.CancelledError:
+                return
+
+            self.data_queue.put_nowait(
+                {cluster_name: {idx: self._process_data_message(msg)}}
+            )
 
     @staticmethod
     def _process_data_message(message: List[CommandExecuted]) -> List[Dict]:

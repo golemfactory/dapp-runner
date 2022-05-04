@@ -12,7 +12,7 @@ from dapp_runner.descriptor import Config, DappDescriptor
 from dapp_runner._util import _print_env_info
 
 from .runner import Runner
-from .streams import RunnerStreamer, StreamType
+from .streams import RunnerStreamer
 
 STARTING_TIMEOUT = timedelta(minutes=4)
 
@@ -41,17 +41,16 @@ async def _run_app(
     _print_env_info(r.golem)
 
     await r.start()
-    streamer = RunnerStreamer(r)
-    streamer.start()
-    streamer.register_stream(StreamType.STATE, state_f, lambda msg: json.dumps(msg))
-    streamer.register_stream(StreamType.DATA, data_f, lambda msg: json.dumps(msg))
+    streamer = RunnerStreamer()
+    streamer.register_stream(r.state_queue, state_f, lambda msg: json.dumps(msg))
+    streamer.register_stream(r.data_queue, data_f, lambda msg: json.dumps(msg))
 
     if not silent:
         streamer.register_stream(
-            StreamType.STATE, sys.stdout, lambda msg: cyan(json.dumps(msg))
+            r.state_queue, sys.stdout, lambda msg: cyan(json.dumps(msg))
         )
         streamer.register_stream(
-            StreamType.DATA, sys.stdout, lambda msg: magenta(json.dumps(msg))
+            r.data_queue, sys.stdout, lambda msg: magenta(json.dumps(msg))
         )
 
     assert r.commissioning_time  # sanity check for mypy
