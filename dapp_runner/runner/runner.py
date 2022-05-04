@@ -51,6 +51,15 @@ class Runner:
         self.data_queue = asyncio.Queue()
         self.state_queue = asyncio.Queue()
 
+    async def _monitor_state_changes(self):
+        prev_state = self.dapp_state
+        while True:
+            await asyncio.sleep(0.01)
+            new_state = self.dapp_state
+            if new_state != prev_state:
+                self.state_queue.put_nowait(new_state)
+                prev_state = new_state
+
     async def _load_payloads(self):
         for name, desc in self.dapp.payloads.items():
             self._payloads[name] = await get_payload(desc)
@@ -58,6 +67,7 @@ class Runner:
     async def start(self):
         """Start the Golem engine and the dapp."""
         self.commissioning_time = datetime.now(tz=timezone.utc)
+        self._tasks.append(asyncio.create_task(self._monitor_state_changes()))
         await self.golem.start()
 
         await self._load_payloads()
@@ -73,7 +83,6 @@ class Runner:
                 s = cluster.instances[idx]
                 self._tasks.extend(
                     [
-                        asyncio.create_task(self._listen_state_queue(s)),
                         asyncio.create_task(
                             self._listen_data_queue(service_name, idx, s)
                         ),
@@ -132,17 +141,6 @@ class Runner:
             ]
         )
 
-    async def _listen_state_queue(self, service: DappService):
-        """On a state change of the instance, update the Runner's state stream."""
-        while True:
-            try:
-                await service.state_queue.get()
-            except asyncio.CancelledError:
-                return
-
-            # on a state change, we're publishing the state of the whole dapp
-            self.state_queue.put_nowait(self.dapp_state)
-
     async def _listen_data_queue(
         self, cluster_name: str, idx: int, service: DappService
     ):
@@ -178,16 +176,11 @@ class Runner:
 
     async def stop(self):
         """Stop the dapp and the Golem engine."""
-        service_tasks: List[asyncio.Task] = []
 
         for cluster in self.clusters.values():
             cluster.stop()
 
-            for s in cluster.instances:
-                service_tasks.extend(s._tasks)
-
         await self.golem.stop()
-        await asyncio.gather(*service_tasks)
         for t in self._tasks:
             t.cancel()
         await asyncio.gather(*self._tasks)
