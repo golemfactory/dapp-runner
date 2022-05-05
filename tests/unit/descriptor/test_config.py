@@ -5,7 +5,6 @@ from dapp_runner.descriptor import DescriptorError
 from dapp_runner.descriptor.config import Config, YagnaConfig, PaymentConfig
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "descriptor_dict, error",
     [
@@ -34,7 +33,7 @@ from dapp_runner.descriptor.config import Config, YagnaConfig, PaymentConfig
         ),
     ],
 )
-async def test_config_descriptor(descriptor_dict, error):
+def test_config_descriptor(descriptor_dict, error):
     """Test whether the Config descriptor loads properly."""
     try:
         config = Config.load(descriptor_dict)

@@ -5,7 +5,6 @@ from dapp_runner.descriptor import DappDescriptor, DescriptorError
 from dapp_runner.descriptor.dapp import PayloadDescriptor, ServiceDescriptor
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "descriptor_dict, error",
     [
@@ -68,7 +67,7 @@ from dapp_runner.descriptor.dapp import PayloadDescriptor, ServiceDescriptor
         ),
     ],
 )
-async def test_dapp_descriptor(descriptor_dict, error):
+def test_dapp_descriptor(descriptor_dict, error):
     """Test whether the Dapp descriptor loads correctly."""
     try:
         dapp = DappDescriptor.load(descriptor_dict)
