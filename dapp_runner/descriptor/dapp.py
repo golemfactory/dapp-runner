@@ -23,7 +23,7 @@ class PortMapping:
 
 
 @dataclass
-class HttpProxy(BaseDescriptor["HttpProxy"]):
+class HttpProxyDescriptor(BaseDescriptor["HttpProxyDescriptor"]):
     """HTTP Proxy descriptor."""
 
     def __ports_factory(value: str) -> PortMapping:  # type: ignore [misc]  # noqa
@@ -49,7 +49,7 @@ class ServiceDescriptor(BaseDescriptor["ServiceDescriptor"]):
 
     payload: str
     entrypoint: List[List[str]] = field(metadata={"factory": __entrypoint_factory})
-    http_proxy: Optional[HttpProxy] = None
+    http_proxy: Optional[HttpProxyDescriptor] = None
 
 
 @dataclass
