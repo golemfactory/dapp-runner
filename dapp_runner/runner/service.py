@@ -1,8 +1,10 @@
 """yapapi Service bindings."""
-from typing import Dict, List, Type
+import asyncio
+from typing import Dict, List, Type, Optional
+
 
 from yapapi.payload import Payload
-from yapapi.services import Service
+from yapapi.services import Service, ServiceState
 
 from dapp_runner.descriptor.dapp import ServiceDescriptor
 
@@ -13,9 +15,36 @@ class DappService(Service):
     """Yapapi Service definition for the Dapp Runner services."""
 
     entrypoint: List[List[str]]
+    _previous_state: Optional[ServiceState] = None
+    _tasks: List[asyncio.Task]
+
+    data_queue: asyncio.Queue
+    state_queue: asyncio.Queue
+
+    def __init__(self):
+        super().__init__()
+        self._tasks = []
+
+        # initialize output queues
+        self.data_queue = asyncio.Queue()
+        self.state_queue = asyncio.Queue()
+
+        self._report_state_change()
+
+    def _report_state_change(self):
+        state = self.state
+        if self._previous_state != state:
+            self.state_queue.put_nowait(self.state)
+            self._previous_state = state
 
     async def start(self):
         """Start the service on a given provider."""
+
+        # initialize the state change report
+        self._report_state_change()
+
+        # and start the task that will report termination of the service
+        self._tasks.append(asyncio.create_task(self._wait_for_termination()))
 
         # perform the initialization of the Service
         # (which includes sending the network details within the `deploy` command)
@@ -26,7 +55,28 @@ class DappService(Service):
             script = self._ctx.new_script()  # type: ignore  # noqa - it's asserted in super().start()
             for c in self.entrypoint:
                 script.run(*c)
+            entrypoint_output = yield script
+
+            self.data_queue.put_nowait(await entrypoint_output)
+
+    async def run(self):
+        """Report a state change after switching to `running`."""
+        self._report_state_change()
+
+        async for script in super().run():
             yield script
+
+    async def shutdown(self):
+        """Report a state change after switching to `stopping`."""
+        self._report_state_change()
+
+        async for script in super().shutdown():
+            yield script
+
+    async def _wait_for_termination(self):
+        while self._previous_state != ServiceState.terminated:
+            await asyncio.sleep(1.0)
+            self._report_state_change()
 
 
 async def get_service(

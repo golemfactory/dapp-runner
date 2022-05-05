@@ -1,4 +1,6 @@
 """Unit tests for dapp_runner.descriptor.service."""
+import asyncio
+
 import pytest
 from unittest.mock import Mock
 
@@ -38,8 +40,21 @@ async def test_service_entrypoint(mock_work_context, entrypoint, expected_script
     service._ctx = mock_work_context
     service.entrypoint = entrypoint
     scripts = []
-    async for s in service.start():
+    gen = service.start()
+
+    s = await gen.__anext__()
+    while s:
         scripts.append(s)
+        future_results = asyncio.get_event_loop().create_future()
+
+        # the mock is sent as the return value of the `yield script` in the service
+        mock_exescript_awaitable = asyncio.sleep(0.01)  # type: ignore [var-annotated]
+
+        future_results.set_result(mock_exescript_awaitable)
+        try:
+            s = await gen.asend(future_results)
+        except StopAsyncIteration:
+            s = None
 
     assert len(scripts) == 2
 
