@@ -1,7 +1,7 @@
 """Class definitions for the Dapp Runner's dapp descriptor."""
 from dataclasses import dataclass, field
 
-from typing import Dict, Union, List, Any, Optional, Final
+from typing import Dict, List, Any, Optional, Final
 
 from .base import BaseDescriptor, DescriptorError
 
@@ -46,17 +46,18 @@ class HttpProxyDescriptor(BaseDescriptor["HttpProxyDescriptor"]):
 class ServiceDescriptor(BaseDescriptor["ServiceDescriptor"]):
     """Yapapi Service descriptor."""
 
-    def __entrypoint_factory(  # type: ignore [misc]  # noqa
-        value: Union[List[List[str]], List[str]]  # noqa
-    ) -> List[List[str]]:
-        if isinstance(value[0], str):
-            return [value]  # type: ignore [list-item] # noqa
-        return value  # type: ignore [return-value] # noqa
-
     payload: str
-    entrypoint: List[List[str]] = field(metadata={"factory": __entrypoint_factory})
+    entrypoint: List[List[str]]
     network: Optional[str] = None
     http_proxy: Optional[HttpProxyDescriptor] = None
+
+    def __validate_entrypoint(self):
+        if self.entrypoint:
+            if isinstance(self.entrypoint[0], str):
+                self.entrypoint = [self.entrypoint]  # noqa
+
+    def __post_init__(self):
+        self.__validate_entrypoint()
 
 
 @dataclass

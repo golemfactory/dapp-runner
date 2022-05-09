@@ -43,6 +43,26 @@ from dapp_runner.descriptor.dapp import (
                 },
                 "nodes": {
                     "simple-service": {
+                        "payload": "simple-service",
+                        "entrypoint": [
+                            "/golem/run/simulate_observations_ctl.py",
+                            "--start",
+                        ],
+                    }
+                },
+            },
+            None,
+        ),
+        (
+            {
+                "payloads": {
+                    "simple-service": {
+                        "runtime": "vm",
+                        "params": {"image_hash": "some-hash"},
+                    }
+                },
+                "nodes": {
+                    "simple-service": {
                         "payload": "other",
                         "entrypoint": [
                             ["/golem/run/simulate_observations_ctl.py", "--start"],
@@ -101,6 +121,9 @@ def test_dapp_descriptor(descriptor_dict, error, test_utils):
         service = list(dapp.nodes.values())[0]
         assert isinstance(payload, PayloadDescriptor)
         assert isinstance(service, ServiceDescriptor)
+
+        assert isinstance(service.entrypoint[0], list)
+
     except Exception as e:  # noqa
         test_utils.verify_error(error, e)
     else:
