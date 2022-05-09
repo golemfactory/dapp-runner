@@ -67,6 +67,26 @@ from dapp_runner.descriptor.dapp import (
         ),
         (
             {
+                "payloads": {
+                    "simple-service": {
+                        "runtime": "vm",
+                        "params": {"image_hash": "some-hash"},
+                    }
+                },
+                "nodes": {
+                    "simple-service": {
+                        "payload": "simple-service",
+                        "entrypoint": [
+                            ["/golem/run/simulate_observations_ctl.py", "--start"],
+                        ],
+                        "network": "missing",
+                    }
+                },
+            },
+            DescriptorError("Undefined network: `missing`"),
+        ),
+        (
+            {
                 "unsupported": {},
             },
             DescriptorError("Unexpected keys: `{'unsupported'}"),
