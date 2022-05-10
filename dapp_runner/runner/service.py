@@ -1,8 +1,9 @@
 """yapapi Service bindings."""
 import asyncio
-from typing import Dict, List, Type, Optional
+from typing import Dict, List, Tuple, Type, Optional
 
 
+from yapapi.contrib.service.http_proxy import HttpProxyService
 from yapapi.payload import Payload
 from yapapi.services import Service, ServiceState
 
@@ -21,8 +22,9 @@ class DappService(Service):
     data_queue: asyncio.Queue
     state_queue: asyncio.Queue
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, entrypoint: List[List[str]], **kwargs):
+        super().__init__(**kwargs)
+        self.entrypoint = entrypoint
         self._tasks = []
 
         # initialize output queues
@@ -79,9 +81,16 @@ class DappService(Service):
             self._report_state_change()
 
 
+class HttpProxyDappService(DappService, HttpProxyService):
+    """Yapapi Service definition enabling HTTP proxy for dapps."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+
 async def get_service(
     name: str, desc: ServiceDescriptor, payloads: Dict[str, Payload]
-) -> Type[DappService]:
+) -> Tuple[Type[Service], dict]:
     """Create a service class corresponding with its descriptor."""
 
     try:
@@ -89,16 +98,26 @@ async def get_service(
     except KeyError:
         raise RunnerError(f"Undefined payload: `{desc.payload}`")
 
-    async def get_payload():
-        return payload_instance
+    service_instance_params: dict = {}
+    service_instance_params["entrypoint"] = desc.entrypoint
 
     DappServiceClass = type(
         f"DappService-{name}",
         (DappService,),
-        {
-            "get_payload": staticmethod(get_payload),
-            "entrypoint": desc.entrypoint,
-        },
+        {},
     )
 
-    return DappServiceClass
+    if desc.http_proxy:
+        port_mapping = desc.http_proxy.ports[0]
+        service_instance_params["remote_port"] = port_mapping.remote_port
+        DappServiceClass = type(
+            f"DappService-{name}",
+            (HttpProxyDappService,),
+            {},
+        )
+
+    run_service_kwargs: dict = {}
+    run_service_kwargs["payload"] = payload_instance
+    run_service_kwargs["instance_params"] = [service_instance_params]
+
+    return DappServiceClass, run_service_kwargs

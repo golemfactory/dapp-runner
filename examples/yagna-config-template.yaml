@@ -1,0 +1,7 @@
+yagna:
+  subnet_tag: null
+  app_key: "ec40b0afe9f640558bd087c43ca31f78"
+payment:
+  budget: 1.0
+  driver: "zksync"
+  network: "rinkeby"

@@ -63,10 +63,10 @@ class Runner:
         await self._load_payloads()
 
         for service_name, service_descriptor in self.dapp.nodes.items():
-            cluster_class = await get_service(
+            cluster_class, run_params = await get_service(
                 service_name, service_descriptor, self._payloads
             )
-            cluster = await self.start_cluster(service_name, cluster_class)
+            cluster = await self.start_cluster(service_name, cluster_class, run_params)
 
             # launch queue listeners for all the service instances
             for idx in range(len(cluster.instances)):
@@ -80,9 +80,9 @@ class Runner:
                     ]
                 )
 
-    async def start_cluster(self, cluster_name, cluster_class):
+    async def start_cluster(self, cluster_name, cluster_class, run_params):
         """Start a single cluster for this dapp."""
-        cluster = await self.golem.run_service(cluster_class)
+        cluster = await self.golem.run_service(cluster_class, **run_params)
         self.clusters[cluster_name] = cluster
         return cluster
 
