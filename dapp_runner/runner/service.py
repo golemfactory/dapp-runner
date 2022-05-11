@@ -4,6 +4,7 @@ from typing import Dict, List, Tuple, Type, Optional
 
 
 from yapapi.contrib.service.http_proxy import HttpProxyService
+from yapapi.network import Network
 from yapapi.payload import Payload
 from yapapi.services import Service, ServiceState
 
@@ -89,7 +90,10 @@ class HttpProxyDappService(DappService, HttpProxyService):
 
 
 async def get_service(
-    name: str, desc: ServiceDescriptor, payloads: Dict[str, Payload]
+    name: str,
+    desc: ServiceDescriptor,
+    payloads: Dict[str, Payload],
+    networks: Dict[str, Network],
 ) -> Tuple[Type[Service], dict]:
     """Create a service class corresponding with its descriptor."""
 
@@ -119,5 +123,7 @@ async def get_service(
     run_service_kwargs: dict = {}
     run_service_kwargs["payload"] = payload_instance
     run_service_kwargs["instance_params"] = [service_instance_params]
+    if desc.network:
+        run_service_kwargs["network"] = networks[desc.network]
 
     return DappServiceClass, run_service_kwargs

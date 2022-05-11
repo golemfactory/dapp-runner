@@ -5,12 +5,14 @@ from datetime import datetime, timezone
 from typing import Optional, Dict, List
 
 from yapapi import Golem
+from yapapi.contrib.service.http_proxy import LocalHttpProxy
 from yapapi.events import CommandExecuted
 from yapapi.network import Network
 from yapapi.payload import Payload
 from yapapi.services import Cluster, ServiceState
 
 from dapp_runner.descriptor import Config, DappDescriptor
+from dapp_runner.descriptor.dapp import PortMapping
 
 from .payload import get_payload
 from .service import get_service, DappService
@@ -30,6 +32,7 @@ class Runner:
     commissioning_time: Optional[datetime]
 
     _payloads: Dict[str, Payload]
+    _proxies: Dict[str, LocalHttpProxy]
     _networks: Dict[str, Network]
     _tasks: List[asyncio.Task]
 
@@ -50,6 +53,7 @@ class Runner:
 
         self.clusters = {}
         self._payloads = {}
+        self._proxies = {}
         self._networks = {}
         self._tasks = []
         self.data_queue = asyncio.Queue()
@@ -63,6 +67,14 @@ class Runner:
         for name, desc in self.dapp.payloads.items():
             self._payloads[name] = await get_payload(desc)
 
+    async def _start_local_proxy(
+        self, name: str, cluster: Cluster, port_mapping: PortMapping
+    ):
+        port = port_mapping.local_port or 8080
+        proxy = LocalHttpProxy(cluster, port)
+        await proxy.run()
+        self._proxies[name] = proxy
+
     async def start(self):
         """Start the Golem engine and the dapp."""
         self.commissioning_time = datetime.now(tz=timezone.utc)
@@ -73,9 +85,13 @@ class Runner:
 
         for service_name, service_descriptor in self.dapp.nodes.items():
             cluster_class, run_params = await get_service(
-                service_name, service_descriptor, self._payloads
+                service_name, service_descriptor, self._payloads, self._networks
             )
             cluster = await self.start_cluster(service_name, cluster_class, run_params)
+            if service_descriptor.http_proxy:
+                await self._start_local_proxy(
+                    service_name, cluster, service_descriptor.http_proxy.ports[0]
+                )
 
             # launch queue listeners for all the service instances
             for idx in range(len(cluster.instances)):
@@ -197,6 +213,8 @@ class Runner:
 
         networks = self._networks.values()
         await asyncio.gather(*[n.remove() for n in networks])
+        proxies = self._proxies.values()
+        await asyncio.gather(*[p.stop() for p in proxies])
 
         await self.golem.stop()
 
