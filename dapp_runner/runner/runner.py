@@ -74,7 +74,11 @@ class Runner:
         port = port_mapping.local_port or get_free_port()
         proxy = LocalHttpProxy(cluster, port)
         await proxy.run()
+
         self._proxies[name] = proxy
+        self.data_queue.put_nowait(
+            {name: {"local_proxy_address": f"http://localhost:{port}"}}
+        )
 
     async def start(self):
         """Start the Golem engine and the dapp."""
