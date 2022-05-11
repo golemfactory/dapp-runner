@@ -1,10 +1,12 @@
 import asyncio
 from colors import yellow, cyan, magenta
+from contextlib import ExitStack, redirect_stdout, redirect_stderr
 from datetime import datetime, timedelta, timezone
 import json
 from pathlib import Path
 import sys
-from typing import TextIO
+import traceback
+from typing import TextIO, Optional
 
 from yapapi.log import enable_default_logger
 
@@ -85,11 +87,25 @@ def start_runner(
     data: Path,
     log: Path,
     state: Path,
+    stdout: Optional[Path] = None,
+    stderr: Optional[Path] = None,
     silent=False,
 ):
     """Launch the runner in an asyncio loop and wait for its shutdown."""
 
-    with open(str(state), "w", 1) as state_f, open(str(data), "w", 1) as data_f:
+    with ExitStack() as stack:
+        state_f = stack.enter_context(open(str(state), "w", 1))
+        data_f = stack.enter_context(open(str(data), "w", 1))
+
+        if stdout:
+            stack.enter_context(
+                redirect_stdout(stack.enter_context(open(str(stdout), "w", 1)))
+            )
+
+        if stderr:
+            stack.enter_context(
+                redirect_stderr(stack.enter_context(open(str(stderr), "w", 1)))
+            )
 
         loop = asyncio.get_event_loop()
         task = loop.create_task(
@@ -106,3 +122,5 @@ def start_runner(
                 print(yellow("Shutdown completed"))
             except (asyncio.CancelledError, KeyboardInterrupt):
                 pass
+        except Exception:  # noqa
+            sys.stderr.write(traceback.format_exc())
