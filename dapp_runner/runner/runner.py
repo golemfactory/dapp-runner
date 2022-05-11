@@ -13,6 +13,7 @@ from yapapi.services import Cluster, ServiceState
 
 from dapp_runner.descriptor import Config, DappDescriptor
 from dapp_runner.descriptor.dapp import PortMapping
+from dapp_runner._util import get_free_port
 
 from .payload import get_payload
 from .service import get_service, DappService
@@ -70,7 +71,7 @@ class Runner:
     async def _start_local_proxy(
         self, name: str, cluster: Cluster, port_mapping: PortMapping
     ):
-        port = port_mapping.local_port or 8080
+        port = port_mapping.local_port or get_free_port()
         proxy = LocalHttpProxy(cluster, port)
         await proxy.run()
         self._proxies[name] = proxy
