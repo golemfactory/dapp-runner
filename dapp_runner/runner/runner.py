@@ -1,10 +1,12 @@
 """Main Dapp Runner module."""
 import asyncio
+from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Optional, Dict, List
 
 from yapapi import Golem
 from yapapi.events import CommandExecuted
+from yapapi.network import Network
 from yapapi.payload import Payload
 from yapapi.services import Cluster, ServiceState
 
@@ -28,6 +30,7 @@ class Runner:
     commissioning_time: Optional[datetime]
 
     _payloads: Dict[str, Payload]
+    _networks: Dict[str, Network]
     _tasks: List[asyncio.Task]
 
     data_queue: asyncio.Queue
@@ -47,9 +50,14 @@ class Runner:
 
         self.clusters = {}
         self._payloads = {}
+        self._networks = {}
         self._tasks = []
         self.data_queue = asyncio.Queue()
         self.state_queue = asyncio.Queue()
+
+    async def _create_networks(self):
+        for name, desc in self.dapp.networks.items():
+            self._networks[name] = await self.golem.create_network(**asdict(desc))
 
     async def _load_payloads(self):
         for name, desc in self.dapp.payloads.items():
@@ -60,6 +68,7 @@ class Runner:
         self.commissioning_time = datetime.now(tz=timezone.utc)
         await self.golem.start()
 
+        await self._create_networks()
         await self._load_payloads()
 
         for service_name, service_descriptor in self.dapp.nodes.items():
@@ -186,7 +195,11 @@ class Runner:
             for s in cluster.instances:
                 service_tasks.extend(s._tasks)
 
+        networks = self._networks.values()
+        await asyncio.gather(*[n.remove() for n in networks])
+
         await self.golem.stop()
+
         await asyncio.gather(*service_tasks)
         for t in self._tasks:
             t.cancel()
