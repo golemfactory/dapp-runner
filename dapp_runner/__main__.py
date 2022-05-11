@@ -57,6 +57,16 @@ def _get_run_dir(run_id: str) -> Path:
     help="Path to the state file.",
 )
 @click.option(
+    "--stdout",
+    type=Path,
+    help="Redirect stdout to the specified file.",
+)
+@click.option(
+    "--stderr",
+    type=Path,
+    help="Redirect stderr to the specified file.",
+)
+@click.option(
     "--config",
     "-c",
     type=Path,
