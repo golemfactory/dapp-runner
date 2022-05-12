@@ -213,6 +213,9 @@ class Runner:
         """Stop the dapp and the Golem engine."""
         service_tasks: List[asyncio.Task] = []
 
+        proxies = self._proxies.values()
+        await asyncio.gather(*[p.stop() for p in proxies])
+
         for cluster in self.clusters.values():
             cluster.stop()
 
@@ -221,8 +224,6 @@ class Runner:
 
         networks = self._networks.values()
         await asyncio.gather(*[n.remove() for n in networks])
-        proxies = self._proxies.values()
-        await asyncio.gather(*[p.stop() for p in proxies])
 
         await self.golem.stop()
 
