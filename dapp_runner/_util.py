@@ -14,9 +14,11 @@ def get_free_port(range_start: int = 8080, range_end: int = 9090) -> int:
     """
     for port in range(range_start, range_end + 1):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            response = s.connect_ex(("localhost", port))
-            if response == 0:
+            try:
+                s.bind(("", port))
                 return port
+            except OSError:
+                pass
 
     raise RuntimeError(
         f"No free ports found. range_start={range_start}, range_end={range_end}"
