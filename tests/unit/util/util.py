@@ -17,5 +17,5 @@ def test_get_free_port_exceeded(test_utils):
         get_free_port()
     except Exception as e:
         test_utils.verify_error(
-            OverflowError("No free ports found. range_start=8080, range_end=9090"), e
+            RuntimeError("No free ports found. range_start=8080, range_end=9090"), e
         )
