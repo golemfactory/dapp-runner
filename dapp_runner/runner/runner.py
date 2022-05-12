@@ -1,17 +1,25 @@
 """Main Dapp Runner module."""
 import asyncio
+from dataclasses import asdict
 from datetime import datetime, timezone
 from typing import Optional, Dict, List
 
 from yapapi import Golem
+from yapapi.contrib.service.http_proxy import LocalHttpProxy
 from yapapi.events import CommandExecuted
+from yapapi.network import Network
 from yapapi.payload import Payload
-from yapapi.services import Cluster, ServiceState
+from yapapi.services.cluster import Cluster
+from yapapi.services.service_state import ServiceState
 
 from dapp_runner.descriptor import Config, DappDescriptor
+from dapp_runner.descriptor.dapp import PortMapping
+from dapp_runner._util import get_free_port
 
 from .payload import get_payload
 from .service import get_service, DappService
+
+LOCAL_PROXY_DATA_KEY = "local_proxy_address"
 
 
 class Runner:
@@ -28,6 +36,8 @@ class Runner:
     commissioning_time: Optional[datetime]
 
     _payloads: Dict[str, Payload]
+    _proxies: Dict[str, LocalHttpProxy]
+    _networks: Dict[str, Network]
     _tasks: List[asyncio.Task]
 
     data_queue: asyncio.Queue
@@ -47,26 +57,49 @@ class Runner:
 
         self.clusters = {}
         self._payloads = {}
+        self._proxies = {}
+        self._networks = {}
         self._tasks = []
         self.data_queue = asyncio.Queue()
         self.state_queue = asyncio.Queue()
 
+    async def _create_networks(self):
+        for name, desc in self.dapp.networks.items():
+            self._networks[name] = await self.golem.create_network(**asdict(desc))
+
     async def _load_payloads(self):
         for name, desc in self.dapp.payloads.items():
             self._payloads[name] = await get_payload(desc)
+
+    async def _start_local_proxy(
+        self, name: str, cluster: Cluster, port_mapping: PortMapping
+    ):
+        port = port_mapping.local_port or get_free_port()
+        proxy = LocalHttpProxy(cluster, port)
+        await proxy.run()
+
+        self._proxies[name] = proxy
+        self.data_queue.put_nowait(
+            {name: {LOCAL_PROXY_DATA_KEY: f"http://localhost:{port}"}}
+        )
 
     async def start(self):
         """Start the Golem engine and the dapp."""
         self.commissioning_time = datetime.now(tz=timezone.utc)
         await self.golem.start()
 
+        await self._create_networks()
         await self._load_payloads()
 
         for service_name, service_descriptor in self.dapp.nodes.items():
-            cluster_class = await get_service(
-                service_name, service_descriptor, self._payloads
+            cluster_class, run_params = await get_service(
+                service_name, service_descriptor, self._payloads, self._networks
             )
-            cluster = await self.start_cluster(service_name, cluster_class)
+            cluster = await self.start_cluster(service_name, cluster_class, run_params)
+            if service_descriptor.http_proxy:
+                await self._start_local_proxy(
+                    service_name, cluster, service_descriptor.http_proxy.ports[0]
+                )
 
             # launch queue listeners for all the service instances
             for idx in range(len(cluster.instances)):
@@ -80,9 +113,9 @@ class Runner:
                     ]
                 )
 
-    async def start_cluster(self, cluster_name, cluster_class):
+    async def start_cluster(self, cluster_name, cluster_class, run_params):
         """Start a single cluster for this dapp."""
-        cluster = await self.golem.run_service(cluster_class)
+        cluster = await self.golem.run_service(cluster_class, **run_params)
         self.clusters[cluster_name] = cluster
         return cluster
 
@@ -180,13 +213,20 @@ class Runner:
         """Stop the dapp and the Golem engine."""
         service_tasks: List[asyncio.Task] = []
 
+        proxies = self._proxies.values()
+        await asyncio.gather(*[p.stop() for p in proxies])
+
         for cluster in self.clusters.values():
             cluster.stop()
 
             for s in cluster.instances:
                 service_tasks.extend(s._tasks)
 
+        networks = self._networks.values()
+        await asyncio.gather(*[n.remove() for n in networks])
+
         await self.golem.stop()
+
         await asyncio.gather(*service_tasks)
         for t in self._tasks:
             t.cancel()
