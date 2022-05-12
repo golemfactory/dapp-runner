@@ -9,7 +9,8 @@ from yapapi.contrib.service.http_proxy import LocalHttpProxy
 from yapapi.events import CommandExecuted
 from yapapi.network import Network
 from yapapi.payload import Payload
-from yapapi.services import Cluster, ServiceState
+from yapapi.services.cluster import Cluster
+from yapapi.services.service_state import ServiceState
 
 from dapp_runner.descriptor import Config, DappDescriptor
 from dapp_runner.descriptor.dapp import PortMapping
@@ -17,6 +18,8 @@ from dapp_runner._util import get_free_port
 
 from .payload import get_payload
 from .service import get_service, DappService
+
+LOCAL_PROXY_DATA_KEY = "local_proxy_address"
 
 
 class Runner:
@@ -77,7 +80,7 @@ class Runner:
 
         self._proxies[name] = proxy
         self.data_queue.put_nowait(
-            {name: {"local_proxy_address": f"http://localhost:{port}"}}
+            {name: {LOCAL_PROXY_DATA_KEY: f"http://localhost:{port}"}}
         )
 
     async def start(self):
