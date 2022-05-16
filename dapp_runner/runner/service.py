@@ -131,4 +131,7 @@ async def get_service(
     if desc.network:
         run_service_kwargs["network"] = networks[desc.network]
 
+    if desc.ip:
+        run_service_kwargs["network_addresses"] = desc.ip
+
     return DappServiceClass, run_service_kwargs

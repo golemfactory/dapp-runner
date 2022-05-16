@@ -46,9 +46,13 @@ class HttpProxyDescriptor(BaseDescriptor["HttpProxyDescriptor"]):
 class ServiceDescriptor(BaseDescriptor["ServiceDescriptor"]):
     """Yapapi Service descriptor."""
 
+    def __ip_list() -> List[str]:  # type: ignore [misc]  # noqa
+        return []
+
     payload: str
     entrypoint: List[List[str]]
     network: Optional[str] = None
+    ip: Optional[List[str]] = field(default_factory=__ip_list)
     http_proxy: Optional[HttpProxyDescriptor] = None
 
     def __validate_entrypoint(self):
