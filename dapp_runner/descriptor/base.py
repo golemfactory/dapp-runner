@@ -93,14 +93,13 @@ class BaseDescriptor(Generic[DescriptorType]):
 
         # field is a `Dict`
         elif getattr(field_type, "__origin__", None) is dict:
-            return cls._load_dict(f, field_type, descriptor_value)  # type: ignore [arg-type] # noqa
+            return cls._load_dict(f, field_type, descriptor_value)
 
         # field is a `List`
         elif getattr(field_type, "__origin__", None) is list:
-            return cls._load_list(f, field_type, descriptor_value)  # type: ignore [arg-type] # noqa
+            return cls._load_list(f, field_type, descriptor_value)
 
         else:
-            print(getattr(f.type, "__origin__", None), field_type.__args__)
             raise NotImplementedError(
                 f"{cls.__name__}.{f.name}: Unimplemented handler for {field_type}"
             )
