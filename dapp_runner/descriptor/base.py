@@ -38,9 +38,11 @@ class BaseDescriptor(Generic[DescriptorType]):
             )
 
     @classmethod
-    def _load_dict(cls, f: Field, descriptor_value: Dict[str, Any]) -> Dict[str, Any]:
+    def _load_dict(
+        cls, f: Field, field_type, descriptor_value: Dict[str, Any]
+    ) -> Dict[str, Any]:
         try:
-            entry_type = getattr(f.type, "__args__", None)[
+            entry_type = getattr(field_type, "__args__", None)[
                 1
             ]  # type: ignore [index] # noqa
         except (TypeError, IndexError):
@@ -55,9 +57,9 @@ class BaseDescriptor(Generic[DescriptorType]):
         return descriptor_value
 
     @classmethod
-    def _load_list(cls, f: Field, descriptor_value: List[Any]) -> List[Any]:
+    def _load_list(cls, f: Field, field_type, descriptor_value: List[Any]) -> List[Any]:
         try:
-            entry_type = getattr(f.type, "__args__", None)[
+            entry_type = getattr(field_type, "__args__", None)[
                 0
             ]  # type: ignore [index] # noqa
         except (TypeError, IndexError):
@@ -73,6 +75,37 @@ class BaseDescriptor(Generic[DescriptorType]):
         return descriptor_value
 
     @classmethod
+    def _resolve_field(cls, f: Field, descriptor_value: Any, field_type=None):
+        if not field_type:
+            field_type = f.type
+
+        # field is a simple type (i.e. not a `typing` type hint)
+        if type(field_type) is type:
+            return cls._instantiate_value(f.name, f, field_type, descriptor_value)
+
+        # field is an Optional -> Union[..., NoneType]
+        elif (
+            getattr(field_type, "__origin__", None) is Union
+            and len(field_type.__args__) == 2
+            and field_type.__args__[1] is type(None)  # noqa
+        ):
+            return cls._resolve_field(f, descriptor_value, field_type.__args__[0])
+
+        # field is a `Dict`
+        elif getattr(field_type, "__origin__", None) is dict:
+            return cls._load_dict(f, field_type, descriptor_value)  # type: ignore [arg-type] # noqa
+
+        # field is a `List`
+        elif getattr(field_type, "__origin__", None) is list:
+            return cls._load_list(f, field_type, descriptor_value)  # type: ignore [arg-type] # noqa
+
+        else:
+            print(getattr(f.type, "__origin__", None), field_type.__args__)
+            raise NotImplementedError(
+                f"{cls.__name__}.{f.name}: Unimplemented handler for {field_type}"
+            )
+
+    @classmethod
     def load(
         cls: Type[DescriptorType], descriptor_dict: Dict[str, Any]
     ) -> DescriptorType:
@@ -85,36 +118,7 @@ class BaseDescriptor(Generic[DescriptorType]):
                 continue
 
             descriptor_value = descriptor_dict.get(f.name)
-
-            # field is a simple type (i.e. not a `typing` type hint)
-            if type(f.type) is type:
-                resolved_kwargs[f.name] = cls._instantiate_value(
-                    f.name, f, f.type, descriptor_value
-                )
-
-            # field is an Optional[simple type] -> Union[type, NoneType]
-            elif (
-                getattr(f.type, "__origin__", None) is Union
-                and len(f.type.__args__) == 2
-                and f.type.__args__[1] is type(None)  # noqa
-                and type(f.type.__args__[0]) is type
-            ):
-                resolved_kwargs[f.name] = cls._instantiate_value(
-                    f.name, f, f.type.__args__[0], descriptor_value
-                )
-
-            # field is a `Dict`
-            elif getattr(f.type, "__origin__", None) is dict:
-                resolved_kwargs[f.name] = cls._load_dict(f, descriptor_value)  # type: ignore [arg-type] # noqa
-
-            # field is a `List`
-            elif getattr(f.type, "__origin__", None) is list:
-                resolved_kwargs[f.name] = cls._load_list(f, descriptor_value)  # type: ignore [arg-type] # noqa
-
-            else:
-                raise NotImplementedError(
-                    f"{cls.__name__}.{f.name}: Unimplemented handler for {f.type}"
-                )
+            resolved_kwargs[f.name] = cls._resolve_field(f, descriptor_value)
 
         unexpected_keys = set(descriptor_dict.keys()) - set(f.name for f in fields(cls))
         if unexpected_keys:
