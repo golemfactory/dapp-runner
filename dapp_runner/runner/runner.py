@@ -2,7 +2,7 @@
 import asyncio
 from dataclasses import asdict
 from datetime import datetime, timezone
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Final
 
 from yapapi import Golem
 from yapapi.contrib.service.http_proxy import LocalHttpProxy
@@ -13,13 +13,14 @@ from yapapi.services.cluster import Cluster
 from yapapi.services.service_state import ServiceState
 
 from dapp_runner.descriptor import Config, DappDescriptor
-from dapp_runner.descriptor.dapp import PortMapping
+from dapp_runner.descriptor.dapp import PortMapping, ServiceDescriptor
 from dapp_runner._util import get_free_port
 
 from .payload import get_payload
 from .service import get_service, DappService
 
-LOCAL_PROXY_DATA_KEY = "local_proxy_address"
+LOCAL_PROXY_DATA_KEY: Final[str] = "local_proxy_address"
+DEPENDENCY_WAIT_INTERVAL: Final[float] = 1.0
 
 
 class Runner:
@@ -39,6 +40,7 @@ class Runner:
     _proxies: Dict[str, LocalHttpProxy]
     _networks: Dict[str, Network]
     _tasks: List[asyncio.Task]
+    _startup_finished: bool
 
     data_queue: asyncio.Queue
     state_queue: asyncio.Queue
@@ -62,6 +64,7 @@ class Runner:
         self._tasks = []
         self.data_queue = asyncio.Queue()
         self.state_queue = asyncio.Queue()
+        self._startup_finished = False
 
     async def _create_networks(self):
         for name, desc in self.dapp.networks.items():
@@ -83,6 +86,49 @@ class Runner:
             {name: {LOCAL_PROXY_DATA_KEY: f"http://localhost:{port}"}}
         )
 
+    async def _start_service(
+        self, service_name: str, service_descriptor: ServiceDescriptor
+    ):
+        # if this service depends on another, wait until the dependency is up
+        if service_descriptor.depends_on:
+            while (
+                service_descriptor.depends_on not in self.clusters
+                or not self._is_cluster_state(
+                    service_descriptor.depends_on, ServiceState.running
+                )
+            ):
+                await asyncio.sleep(DEPENDENCY_WAIT_INTERVAL)
+
+        cluster_class, run_params = await get_service(
+            service_name, service_descriptor, self._payloads, self._networks
+        )
+        cluster = await self.start_cluster(service_name, cluster_class, run_params)
+
+        if service_descriptor.http_proxy:
+            # wait until the service is running before starting the proxy
+            while not self._is_cluster_state(service_name, ServiceState.running):
+                await asyncio.sleep(DEPENDENCY_WAIT_INTERVAL)
+
+            await self._start_local_proxy(
+                service_name, cluster, service_descriptor.http_proxy.ports[0]
+            )
+
+        # launch queue listeners for all the service instances
+        for idx in range(len(cluster.instances)):
+            s = cluster.instances[idx]
+            self._tasks.extend(
+                [
+                    asyncio.create_task(self._listen_state_queue(s)),
+                    asyncio.create_task(self._listen_data_queue(service_name, idx, s)),
+                ]
+            )
+
+    async def _start_services(self):
+        for service_name, service_descriptor in self.dapp.nodes_prioritized():
+            await self._start_service(service_name, service_descriptor)
+
+        self._startup_finished = True
+
     async def start(self):
         """Start the Golem engine and the dapp."""
         self.commissioning_time = datetime.now(tz=timezone.utc)
@@ -91,27 +137,7 @@ class Runner:
         await self._create_networks()
         await self._load_payloads()
 
-        for service_name, service_descriptor in self.dapp.nodes.items():
-            cluster_class, run_params = await get_service(
-                service_name, service_descriptor, self._payloads, self._networks
-            )
-            cluster = await self.start_cluster(service_name, cluster_class, run_params)
-            if service_descriptor.http_proxy:
-                await self._start_local_proxy(
-                    service_name, cluster, service_descriptor.http_proxy.ports[0]
-                )
-
-            # launch queue listeners for all the service instances
-            for idx in range(len(cluster.instances)):
-                s = cluster.instances[idx]
-                self._tasks.extend(
-                    [
-                        asyncio.create_task(self._listen_state_queue(s)),
-                        asyncio.create_task(
-                            self._listen_data_queue(service_name, idx, s)
-                        ),
-                    ]
-                )
+        self._tasks.append(asyncio.create_task(self._start_services()))
 
     async def start_cluster(self, cluster_name, cluster_class, run_params):
         """Start a single cluster for this dapp."""
@@ -143,7 +169,7 @@ class Runner:
         clusters have been started and remain running.
         """
 
-        return all(
+        return self._startup_finished and all(
             [
                 self._is_cluster_state(cluster_id, ServiceState.running)
                 for cluster_id in self.clusters.keys()

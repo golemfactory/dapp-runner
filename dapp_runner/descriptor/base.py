@@ -111,6 +111,10 @@ class BaseDescriptor(Generic[DescriptorType]):
         """Create a new descriptor object from its dictionary representation."""
         resolved_kwargs: Dict[str, Any] = {}
         for f in fields(cls):
+            # skip non-init fields
+            if not f.init:
+                continue
+
             # if the fields value is not provided in the descriptor, we're leaving
             # that to the instantiated class' `__init__` to warn about that
             if f.name not in descriptor_dict.keys():
