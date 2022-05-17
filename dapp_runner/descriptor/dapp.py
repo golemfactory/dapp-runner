@@ -14,6 +14,10 @@ VM_PAYLOAD_CAPS_KWARG: Final[str] = "capabilities"
 DEPENDENCY_ROOT: Final[str] = ""
 
 
+def _default_str_list() -> List[str]:
+    return []
+
+
 @dataclass
 class PayloadDescriptor:
     """Yapapi Payload descriptor."""
@@ -48,15 +52,12 @@ class HttpProxyDescriptor(BaseDescriptor["HttpProxyDescriptor"]):
 class ServiceDescriptor(BaseDescriptor["ServiceDescriptor"]):
     """Yapapi Service descriptor."""
 
-    def __default_str_list() -> List[str]:  # type: ignore [misc]  # noqa
-        return []
-
     payload: str
     entrypoint: List[List[str]]
     network: Optional[str] = None
-    ip: Optional[List[str]] = field(default_factory=__default_str_list)
+    ip: Optional[List[str]] = field(default_factory=_default_str_list)
     http_proxy: Optional[HttpProxyDescriptor] = None
-    depends_on: Optional[List[str]] = field(default_factory=__default_str_list)
+    depends_on: Optional[List[str]] = field(default_factory=_default_str_list)
 
     def __validate_entrypoint(self):
         if self.entrypoint:
