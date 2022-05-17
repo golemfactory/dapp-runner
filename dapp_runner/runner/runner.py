@@ -77,6 +77,10 @@ class Runner:
     async def _start_local_proxy(
         self, name: str, cluster: Cluster, port_mapping: PortMapping
     ):
+        # wait until the service is running before starting the proxy
+        while not self._is_cluster_state(name, ServiceState.running):
+            await asyncio.sleep(DEPENDENCY_WAIT_INTERVAL)
+
         port = port_mapping.local_port or get_free_port()
         proxy = LocalHttpProxy(cluster, port)
         await proxy.run()
@@ -103,12 +107,14 @@ class Runner:
         cluster = await self.start_cluster(service_name, cluster_class, run_params)
 
         if service_descriptor.http_proxy:
-            # wait until the service is running before starting the proxy
-            while not self._is_cluster_state(service_name, ServiceState.running):
-                await asyncio.sleep(DEPENDENCY_WAIT_INTERVAL)
-
-            await self._start_local_proxy(
-                service_name, cluster, service_descriptor.http_proxy.ports[0]
+            # start the task for the local proxy so that
+            # it doesn't delay the initialization process
+            self._tasks.append(
+                asyncio.create_task(
+                    self._start_local_proxy(
+                        service_name, cluster, service_descriptor.http_proxy.ports[0]
+                    )
+                )
             )
 
         # launch queue listeners for all the service instances
@@ -135,6 +141,9 @@ class Runner:
         await self._create_networks()
         await self._load_payloads()
 
+        # we start services in a separate task,
+        # so that the service state can be tracked
+        # while the dapp is starting
         self._tasks.append(asyncio.create_task(self._start_services()))
 
     async def start_cluster(self, cluster_name, cluster_class, run_params):

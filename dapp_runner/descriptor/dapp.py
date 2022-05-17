@@ -1,7 +1,7 @@
 """Class definitions for the Dapp Runner's dapp descriptor."""
 from dataclasses import dataclass, field
 import networkx
-from typing import Dict, List, Any, Optional, Final, Generator, Tuple
+from typing import Dict, List, Any, Optional, Final, Tuple
 
 from .base import BaseDescriptor, DescriptorError
 
@@ -12,10 +12,6 @@ PAYLOAD_RUNTIME_VM: Final[str] = "vm"
 VM_PAYLOAD_CAPS_KWARG: Final[str] = "capabilities"
 
 DEPENDENCY_ROOT: Final[str] = ""
-
-
-def _default_str_list() -> List[str]:
-    return []
 
 
 @dataclass
@@ -55,9 +51,9 @@ class ServiceDescriptor(BaseDescriptor["ServiceDescriptor"]):
     payload: str
     entrypoint: List[List[str]]
     network: Optional[str] = None
-    ip: Optional[List[str]] = field(default_factory=_default_str_list)
+    ip: Optional[List[str]] = field(default_factory=list)  # type: ignore [assignment]  # noqa
     http_proxy: Optional[HttpProxyDescriptor] = None
-    depends_on: Optional[List[str]] = field(default_factory=_default_str_list)
+    depends_on: Optional[List[str]] = field(default_factory=list)  # type: ignore [assignment]  # noqa
 
     def __validate_entrypoint(self):
         if self.entrypoint:
@@ -143,12 +139,15 @@ class DappDescriptor(BaseDescriptor["DappDescriptor"]):
                 "Service definition contains a circular `depends_on`."
             )
 
-    def nodes_prioritized(self) -> Generator[Tuple[str, ServiceDescriptor], None, None]:
-        """Get a dict-items-like generator of services, ordered by dependencies."""
-
-        for name in reversed(list(networkx.topological_sort(self._dependency_graph))):
-            if name != DEPENDENCY_ROOT:
-                yield name, self.nodes[name]
+    def nodes_prioritized(self) -> List[Tuple[str, ServiceDescriptor]]:
+        """Get a dict-items-like list of services, ordered by dependencies."""
+        return [
+            (name, self.nodes[name])
+            for name in reversed(
+                list(networkx.topological_sort(self._dependency_graph))
+            )
+            if name != DEPENDENCY_ROOT
+        ]
 
     def __post_init__(self):
         self.__validate_nodes()
