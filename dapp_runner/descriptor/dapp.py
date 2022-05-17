@@ -48,15 +48,15 @@ class HttpProxyDescriptor(BaseDescriptor["HttpProxyDescriptor"]):
 class ServiceDescriptor(BaseDescriptor["ServiceDescriptor"]):
     """Yapapi Service descriptor."""
 
-    def __ip_list() -> List[str]:  # type: ignore [misc]  # noqa
+    def __default_str_list() -> List[str]:  # type: ignore [misc]  # noqa
         return []
 
     payload: str
     entrypoint: List[List[str]]
     network: Optional[str] = None
-    ip: Optional[List[str]] = field(default_factory=__ip_list)
+    ip: Optional[List[str]] = field(default_factory=__default_str_list)
     http_proxy: Optional[HttpProxyDescriptor] = None
-    depends_on: Optional[str] = None
+    depends_on: Optional[List[str]] = field(default_factory=__default_str_list)
 
     def __validate_entrypoint(self):
         if self.entrypoint:
@@ -132,7 +132,8 @@ class DappDescriptor(BaseDescriptor["DappDescriptor"]):
 
         for name, service in self.nodes.items():
             if service.depends_on:
-                self._dependency_graph.add_edge(name, service.depends_on)
+                for depends_name in service.depends_on:
+                    self._dependency_graph.add_edge(name, depends_name)
             else:
                 self._dependency_graph.add_edge(DEPENDENCY_ROOT, name)
 

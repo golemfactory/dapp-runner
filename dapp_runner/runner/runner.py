@@ -91,13 +91,11 @@ class Runner:
     ):
         # if this service depends on another, wait until the dependency is up
         if service_descriptor.depends_on:
-            while (
-                service_descriptor.depends_on not in self.clusters
-                or not self._is_cluster_state(
-                    service_descriptor.depends_on, ServiceState.running
-                )
-            ):
-                await asyncio.sleep(DEPENDENCY_WAIT_INTERVAL)
+            for depends_name in service_descriptor.depends_on:
+                while depends_name not in self.clusters or not self._is_cluster_state(
+                    depends_name, ServiceState.running
+                ):
+                    await asyncio.sleep(DEPENDENCY_WAIT_INTERVAL)
 
         cluster_class, run_params = await get_service(
             service_name, service_descriptor, self._payloads, self._networks
