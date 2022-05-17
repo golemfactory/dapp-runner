@@ -1,0 +1,3 @@
+[submodule "dapp-store"]
+	path = dapp-store
+	url = git@github.com:golemfactory/dapp-store.git
