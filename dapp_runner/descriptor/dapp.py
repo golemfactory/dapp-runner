@@ -51,9 +51,9 @@ class ServiceDescriptor(BaseDescriptor["ServiceDescriptor"]):
     payload: str
     entrypoint: List[List[str]]
     network: Optional[str] = None
-    ip: Optional[List[str]] = field(default_factory=list)  # type: ignore [assignment]  # noqa
+    ip: List[str] = field(default_factory=list)
     http_proxy: Optional[HttpProxyDescriptor] = None
-    depends_on: Optional[List[str]] = field(default_factory=list)  # type: ignore [assignment]  # noqa
+    depends_on: List[str] = field(default_factory=list)
 
     def __validate_entrypoint(self):
         if self.entrypoint:
@@ -130,6 +130,11 @@ class DappDescriptor(BaseDescriptor["DappDescriptor"]):
         for name, service in self.nodes.items():
             if service.depends_on:
                 for depends_name in service.depends_on:
+                    if depends_name not in self.nodes:
+                        raise DescriptorError(
+                            f'Unmet `depends_on`: "{depends_name}"'
+                            f' in service: "{name}".'
+                        )
                     self._dependency_graph.add_edge(name, depends_name)
             else:
                 self._dependency_graph.add_edge(DEPENDENCY_ROOT, name)

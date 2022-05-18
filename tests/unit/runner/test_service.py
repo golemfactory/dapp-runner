@@ -2,12 +2,21 @@
 import asyncio
 
 import pytest
+from typing import Final
 from unittest.mock import Mock
 
 from yapapi.ctx import WorkContext, Script
+from yapapi.payload import Payload
+from yapapi.network import Network
 from yapapi.script import Run
 
-from dapp_runner.runner.service import DappService, HttpProxyDappService
+from dapp_runner.descriptor.dapp import (
+    ServiceDescriptor,
+    HttpProxyDescriptor,
+    PortMapping,
+)
+from dapp_runner.runner import RunnerError
+from dapp_runner.runner.service import DappService, HttpProxyDappService, get_service
 
 
 @pytest.fixture
@@ -20,16 +29,16 @@ def mock_work_context():  # noqa
     "entrypoint, expected_script",
     [
         (
-            (
+            [
                 [
                     "/bin/test",
                     "blah",
                 ],
-            ),
+            ],
             [Run("/bin/test", "blah")],
         ),
         (
-            (["/bin/test", "blah"], ["/bin/blah"]),
+            [["/bin/test", "blah"], ["/bin/blah"]],
             [Run("/bin/test", "blah"), Run("/bin/blah")],
         ),
     ],
@@ -45,11 +54,7 @@ async def test_service_entrypoint(mock_work_context, entrypoint, expected_script
     while s:
         scripts.append(s)
         future_results = asyncio.get_event_loop().create_future()
-
-        # the mock is sent as the return value of the `yield script` in the service
-        mock_exescript_awaitable = asyncio.sleep(0.01)  # type: ignore [var-annotated]
-
-        future_results.set_result(mock_exescript_awaitable)
+        future_results.set_result("some output...")
         try:
             s = await gen.asend(future_results)
         except StopAsyncIteration:
@@ -119,3 +124,106 @@ def test_proxy_dapp_service(test_utils, service_kwargs, expected_attrs, expected
             assert getattr(proxy_service, name) == value
     except Exception as e:
         test_utils.verify_error(expected_exc, e)
+
+
+SOME_PAYLOAD: Final = Payload()
+SOME_NETWORK: Final = Network(Mock(), "192.168.0.1/24", "192.168.0.1")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "descriptor, payloads, networks, base_class, expected_kwargs, error",
+    (
+        # non-networked service
+        (
+            ServiceDescriptor(entrypoint=[], payload="foo"),
+            {"foo": SOME_PAYLOAD},
+            {},
+            DappService,
+            {"payload": SOME_PAYLOAD, "instance_params": [{"entrypoint": []}]},
+            None,
+        ),
+        # networked service
+        (
+            ServiceDescriptor(entrypoint=[], payload="foo", network="bar"),
+            {"foo": SOME_PAYLOAD},
+            {"bar": SOME_NETWORK},
+            DappService,
+            {
+                "instance_params": [{"entrypoint": []}],
+                "payload": SOME_PAYLOAD,
+                "network": SOME_NETWORK,
+            },
+            None,
+        ),
+        # missing payload definition
+        (
+            ServiceDescriptor(entrypoint=[], payload="foo"),
+            {},
+            {},
+            None,
+            {},
+            RunnerError('Undefined payload: "foo"'),
+        ),
+        # missing network definition
+        (
+            ServiceDescriptor(entrypoint=[], payload="foo", network="bar"),
+            {"foo": SOME_PAYLOAD},
+            {},
+            None,
+            {},
+            RunnerError('Undefined network: "bar"'),
+        ),
+        # network service with an http proxy
+        (
+            ServiceDescriptor(
+                entrypoint=[],
+                payload="foo",
+                network="bar",
+                http_proxy=HttpProxyDescriptor(ports=[PortMapping(80)]),
+            ),
+            {"foo": SOME_PAYLOAD},
+            {"bar": SOME_NETWORK},
+            HttpProxyDappService,
+            {
+                "instance_params": [{"entrypoint": [], "remote_port": 80}],
+                "payload": SOME_PAYLOAD,
+                "network": SOME_NETWORK,
+            },
+            None,
+        ),
+        # explicit IP address
+        (
+            ServiceDescriptor(
+                entrypoint=[],
+                payload="foo",
+                network="bar",
+                ip=["192.168.0.2"],
+            ),
+            {"foo": SOME_PAYLOAD},
+            {"bar": SOME_NETWORK},
+            DappService,
+            {
+                "instance_params": [{"entrypoint": []}],
+                "payload": SOME_PAYLOAD,
+                "network": SOME_NETWORK,
+                "network_addresses": ["192.168.0.2"],
+            },
+            None,
+        ),
+    ),
+)
+async def test_get_service(
+    test_utils, descriptor, payloads, networks, base_class, expected_kwargs, error
+):
+    """Verify the generated service defintion."""
+    try:
+        service_class, run_service_kwargs = await get_service(
+            "", descriptor, payloads, networks
+        )
+        assert issubclass(service_class, base_class)
+        assert run_service_kwargs == expected_kwargs
+    except Exception as e:  # noqa
+        test_utils.verify_error(error, e)
+    else:
+        test_utils.verify_error(error, None)
