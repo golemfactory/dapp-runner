@@ -14,6 +14,7 @@ from dapp_runner.descriptor import Config, DappDescriptor
 from dapp_runner._util import _print_env_info
 
 from .runner import Runner
+from .error import RunnerError
 from .streams import RunnerStreamer
 
 STARTING_TIMEOUT = timedelta(minutes=4)
@@ -124,3 +125,11 @@ def start_runner(
                 pass
         except Exception:  # noqa
             sys.stderr.write(traceback.format_exc())
+
+
+__all__ = (
+    "Runner",
+    "RunnerStreamer",
+    "RunnerError",
+    "start_runner",
+)

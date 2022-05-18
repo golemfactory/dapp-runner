@@ -1,7 +1,7 @@
 """Class definitions for the Dapp Runner's dapp descriptor."""
 from dataclasses import dataclass, field
-
-from typing import Dict, List, Any, Optional, Final
+import networkx
+from typing import Dict, List, Any, Optional, Final, Tuple
 
 from .base import BaseDescriptor, DescriptorError
 
@@ -10,6 +10,8 @@ from yapapi.payload import vm
 NETWORK_DEFAULT_NAME: Final[str] = "default"
 PAYLOAD_RUNTIME_VM: Final[str] = "vm"
 VM_PAYLOAD_CAPS_KWARG: Final[str] = "capabilities"
+
+DEPENDENCY_ROOT: Final[str] = ""
 
 
 @dataclass
@@ -49,7 +51,9 @@ class ServiceDescriptor(BaseDescriptor["ServiceDescriptor"]):
     payload: str
     entrypoint: List[List[str]]
     network: Optional[str] = None
+    ip: List[str] = field(default_factory=list)
     http_proxy: Optional[HttpProxyDescriptor] = None
+    depends_on: List[str] = field(default_factory=list)
 
     def __validate_entrypoint(self):
         if self.entrypoint:
@@ -77,6 +81,8 @@ class DappDescriptor(BaseDescriptor["DappDescriptor"]):
     payloads: Dict[str, PayloadDescriptor]
     nodes: Dict[str, ServiceDescriptor]
     networks: Dict[str, NetworkDescriptor] = field(default_factory=dict)
+
+    _dependency_graph: networkx.DiGraph = field(init=False)
 
     def __validate_nodes(self):
         """Ensure that required payloads and optional networks are defined."""
@@ -110,7 +116,46 @@ class DappDescriptor(BaseDescriptor["DappDescriptor"]):
                     vm.VM_CAPS_VPN
                 ]
 
+    def _resolve_dependencies(self):
+        """Resolve instantiation priorities."""
+
+        # initialize the dependency graph and add a root node
+        self._dependency_graph: networkx.DiGraph = networkx.DiGraph()
+        self._dependency_graph.add_node(DEPENDENCY_ROOT)
+
+        # for now, we only care about the order of services,
+        # later we can enhance the dependency graph to
+        # take all the other entities into consideration
+
+        for name, service in self.nodes.items():
+            if service.depends_on:
+                for depends_name in service.depends_on:
+                    if depends_name not in self.nodes:
+                        raise DescriptorError(
+                            f'Unmet `depends_on`: "{depends_name}"'
+                            f' in service: "{name}".'
+                        )
+                    self._dependency_graph.add_edge(name, depends_name)
+            else:
+                self._dependency_graph.add_edge(DEPENDENCY_ROOT, name)
+
+        if not networkx.is_directed_acyclic_graph(self._dependency_graph):
+            raise DescriptorError(
+                "Service definition contains a circular `depends_on`."
+            )
+
+    def nodes_prioritized(self) -> List[Tuple[str, ServiceDescriptor]]:
+        """Get a dict-items-like list of services, ordered by dependencies."""
+        return [
+            (name, self.nodes[name])
+            for name in reversed(
+                list(networkx.topological_sort(self._dependency_graph))
+            )
+            if name != DEPENDENCY_ROOT
+        ]
+
     def __post_init__(self):
         self.__validate_nodes()
         self.__implicit_http_proxy_init()
         self.__implicit_vpn()
+        self._resolve_dependencies()

@@ -196,7 +196,7 @@ def test_dapp_descriptor(descriptor_dict, error, test_utils):
     ],
 )
 def test_http_proxy_descriptor(
-    descriptor_dict, remote_port, local_port, error, test_utils, implicit_vpn
+    test_utils, descriptor_dict, remote_port, local_port, error, implicit_vpn
 ):
     """Test whether the `http_proxy` descriptor is correctly interpreted."""
     try:
@@ -216,6 +216,89 @@ def test_http_proxy_descriptor(
             assert VM_PAYLOAD_CAPS_KWARG in payload.params
             assert vm.VM_CAPS_VPN in payload.params[VM_PAYLOAD_CAPS_KWARG]
 
+    except Exception as e:  # noqa
+        test_utils.verify_error(error, e)
+    else:
+        test_utils.verify_error(error, None)
+
+
+@pytest.mark.parametrize(
+    "descriptor_dict, error, expected_priority",
+    (
+        (
+            {
+                "payloads": {"foo": {"runtime": "vm"}},
+                "nodes": {
+                    "db1": {
+                        "payload": "foo",
+                        "entrypoint": [],
+                    },
+                    "http": {
+                        "payload": "foo",
+                        "entrypoint": [],
+                        "depends_on": ["db1", "db2"],
+                    },
+                    "db2": {
+                        "payload": "foo",
+                        "entrypoint": [],
+                    },
+                },
+            },
+            None,
+            ["db2", "db1", "http"],
+        ),
+        (
+            {
+                "payloads": {"foo": {"runtime": "vm"}},
+                "nodes": {
+                    "one": {
+                        "payload": "foo",
+                        "entrypoint": [],
+                    },
+                    "three": {
+                        "payload": "foo",
+                        "entrypoint": [],
+                        "depends_on": ["two"],
+                    },
+                    "two": {
+                        "payload": "foo",
+                        "entrypoint": [],
+                        "depends_on": ["one"],
+                    },
+                },
+            },
+            None,
+            ["one", "two", "three"],
+        ),
+        (
+            {
+                "payloads": {"foo": {"runtime": "vm"}},
+                "nodes": {
+                    "http": {"payload": "foo", "entrypoint": [], "depends_on": ["bar"]}
+                },
+            },
+            DescriptorError('Unmet `depends_on`: "bar" in service: "http"'),
+            [],
+        ),
+        (
+            {
+                "payloads": {"foo": {"runtime": "vm"}},
+                "nodes": {
+                    "http": {"payload": "foo", "entrypoint": [], "depends_on": ["db"]},
+                    "db": {"payload": "foo", "entrypoint": [], "depends_on": ["http"]},
+                },
+            },
+            DescriptorError("Service definition contains a circular `depends_on`."),
+            [],
+        ),
+    ),
+)
+def test_depends_on(test_utils, descriptor_dict, error, expected_priority):
+    """Test the `depends_on` parameter."""
+    try:
+        dapp = DappDescriptor.load(descriptor_dict)
+        nodes_priority = [name for name, service in dapp.nodes_prioritized()]
+        assert nodes_priority == expected_priority
     except Exception as e:  # noqa
         test_utils.verify_error(error, e)
     else:

@@ -100,7 +100,7 @@ async def get_service(
     try:
         payload_instance = payloads[desc.payload]
     except KeyError:
-        raise RunnerError(f"Undefined payload: `{desc.payload}`")
+        raise RunnerError(f'Undefined payload: "{desc.payload}"')
 
     service_instance_params: dict = {}
     service_instance_params["entrypoint"] = desc.entrypoint
@@ -125,10 +125,20 @@ async def get_service(
             {},
         )
 
-    run_service_kwargs: dict = {}
-    run_service_kwargs["payload"] = payload_instance
-    run_service_kwargs["instance_params"] = [service_instance_params]
+    run_service_kwargs: dict = {
+        "payload": payload_instance,
+        "instance_params": [service_instance_params],
+    }
+
     if desc.network:
-        run_service_kwargs["network"] = networks[desc.network]
+        try:
+            network = networks[desc.network]
+        except KeyError:
+            raise RunnerError(f'Undefined network: "{desc.network}"')
+
+        run_service_kwargs["network"] = network
+
+    if desc.ip:
+        run_service_kwargs["network_addresses"] = desc.ip
 
     return DappServiceClass, run_service_kwargs
