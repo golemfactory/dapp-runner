@@ -251,6 +251,29 @@ def test_http_proxy_descriptor(
             {
                 "payloads": {"foo": {"runtime": "vm"}},
                 "nodes": {
+                    "one": {
+                        "payload": "foo",
+                        "entrypoint": [],
+                    },
+                    "three": {
+                        "payload": "foo",
+                        "entrypoint": [],
+                        "depends_on": ["two"],
+                    },
+                    "two": {
+                        "payload": "foo",
+                        "entrypoint": [],
+                        "depends_on": ["one"],
+                    },
+                },
+            },
+            None,
+            ["one", "two", "three"],
+        ),
+        (
+            {
+                "payloads": {"foo": {"runtime": "vm"}},
+                "nodes": {
                     "http": {"payload": "foo", "entrypoint": [], "depends_on": ["bar"]}
                 },
             },
