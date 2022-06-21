@@ -38,6 +38,9 @@ pytest = "^7.1"
 pytest-asyncio = "^0.18.3"
 pytest-cov = "^3.0.0"
 
+[tool.poetry.scripts]
+dapp-runner = "dapp_runner.__main__:_cli"
+
 [tool.poe.tasks]
 code_check = "flake8"
 code_format = "black --check --diff ."
