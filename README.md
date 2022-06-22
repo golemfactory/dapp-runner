@@ -31,9 +31,12 @@ First, ensure you have Python 3.8 or later:
 python3 --version
 ```
 
-If you don't have `python3` or your Python is older than that, consider using [pyenv](https://github.com/pyenv/pyenv-installer).
+[ depending on the platform, it may be just `python` instead of `python3` ]
 
-Once your `python3` reports a version 3.8 or later, prepare your environment
+If your Python version is older, consider using [pyenv](https://github.com/pyenv/pyenv-installer).
+
+Once your python interpreter reports a version 3.8 or later, you can set-up your virtual
+environment:
 
 ```bash
 python3 -m venv ~/.envs/dapp-runner
