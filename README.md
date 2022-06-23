@@ -1,6 +1,6 @@
 # Golem dApp Runner
 
-`dapp-runner` is a utility that allows you to run decentralized applications on Golem.
+`dapp-runner` is a utility that allows you to run decentralized applications on [Golem](https://www.golem.network/).
 It uses simple application descriptors expressed in `yaml`, similar to those used by
 tools like `docker-compose`.
 
