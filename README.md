@@ -266,7 +266,7 @@ payment:
 
 ### Descriptors
 
-One or more application descriptors, as specified in  the
+One or more application descriptors, as specified in the
 ["Application descriptor"](#application-descriptor) section above.
 
 If more than one `yaml` descriptor file is given, all of the `yaml` files are merged
