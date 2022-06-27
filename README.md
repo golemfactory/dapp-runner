@@ -189,7 +189,7 @@ Usage: dapp-runner start [OPTIONS] DESCRIPTORS...
 which allows the following options:
 
 ```
- -d, --data PATH    Path to the data file.
+  -d, --data PATH    Path to the data file.
   -l, --log PATH     Path to the log file.
   -s, --state PATH   Path to the state file.
   --stdout PATH      Redirect stdout to the specified file.
