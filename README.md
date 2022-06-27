@@ -9,6 +9,16 @@ and uses [yapapi](https://github.com/golemfactory/yapapi), Golem's Python high-l
 to communicate with it. As opposed to using plain `yapapi` though, deployment of
 applications on Golem using `dapp-runner` requires no code and no experience in Python.
 
+### Relationship with `dapp-manager`
+
+While the `dapp-runner` is perfectly capable of running decentralized apps on its own, we are also
+providing a separate tool to facilitate running and managing multiple applications on a single
+machine, namely, the [dapp-manager](https://github.com/golemfactory/dapp-manager/).
+
+dApp Manager keeps track of the launched apps and allows you to easily query their output streams.
+It uses the `dapp-runner` as its back-end and both require the yagna daemon to communicate with the
+rest of the Golem Network.
+
 ## Quick start
 
 ### Yagna daemon
