@@ -1,5 +1,5 @@
 import asyncio
-from colors import yellow, cyan, magenta
+from colors import yellow, cyan, magenta, green
 from contextlib import ExitStack, redirect_stdout, redirect_stderr
 from datetime import datetime, timedelta, timezone
 import json
@@ -10,7 +10,7 @@ from typing import TextIO, Optional
 
 from yapapi.log import enable_default_logger
 
-from dapp_runner.descriptor import Config, DappDescriptor
+from dapp_runner.descriptor import Config, DappDescriptor, DescriptorError
 from dapp_runner._util import _print_env_info
 
 from .runner import Runner
@@ -42,6 +42,8 @@ async def _run_app(
 
     r = Runner(config=config, dapp=dapp)
     _print_env_info(r.golem)
+    if dapp.meta.name:
+        print(f"Starting app: {green(dapp.meta.name)}\n")
 
     await r.start()
     streamer = RunnerStreamer()
@@ -127,9 +129,22 @@ def start_runner(
             sys.stderr.write(traceback.format_exc())
 
 
+def verify_dapp(dapp_dict: dict):
+    """Verify the passed app descriptor schema and report any encountered errors."""
+    try:
+        dapp = DappDescriptor.load(dapp_dict)
+        print(dapp)
+    except DescriptorError as e:
+        print(e)
+        return False
+
+    return True
+
+
 __all__ = (
     "Runner",
     "RunnerStreamer",
     "RunnerError",
     "start_runner",
+    "verify_dapp",
 )

@@ -15,7 +15,7 @@ import shortuuid
 
 from dapp_runner import MODULE_AUTHOR, MODULE_NAME
 from dapp_runner.descriptor.parser import load_yamls
-from dapp_runner.runner import start_runner
+from dapp_runner.runner import start_runner, verify_dapp
 
 
 logger = logging.getLogger(__name__)
@@ -105,6 +105,27 @@ def start(
             kwargs[param_name] = app_dir / param_name
 
     start_runner(config_dict, dapp_dict, **kwargs)
+
+
+@_cli.command()
+@click.argument(
+    "descriptors",
+    nargs=-1,
+    required=True,
+    type=Path,
+)
+@click.pass_context
+def verify(
+    ctx: click.Context,
+    descriptors: Tuple[Path],
+) -> None:
+    """Verify the app descriptor.
+
+    Loads the descriptors and prints the interpreted value
+    or reports the encountered error.
+    """
+    dapp_dict = load_yamls(*descriptors)
+    ctx.exit(0 if verify_dapp(dapp_dict) else 1)
 
 
 if __name__ == "__main__":
