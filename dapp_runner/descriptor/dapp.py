@@ -1,5 +1,5 @@
 """Class definitions for the Dapp Runner's dapp descriptor."""
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 import networkx
 from typing import Dict, List, Any, Optional, Final, Tuple
 
@@ -75,12 +75,31 @@ class NetworkDescriptor(BaseDescriptor["NetworkDescriptor"]):
 
 
 @dataclass
+class MetaDescriptor:
+    """Meta descriptor for the app.
+
+    Silently ignores unknown fields.
+    """
+
+    name: str = ""
+    description: str = ""
+    author: str = ""
+    version: str = ""
+
+    def __init__(self, **kwargs):
+        for f in fields(self):
+            if f.name in kwargs:
+                setattr(self, f.name, f.type(kwargs.pop(f.name)))
+
+
+@dataclass
 class DappDescriptor(BaseDescriptor["DappDescriptor"]):
     """Root dapp descriptor for the Dapp Runner."""
 
     payloads: Dict[str, PayloadDescriptor]
     nodes: Dict[str, ServiceDescriptor]
     networks: Dict[str, NetworkDescriptor] = field(default_factory=dict)
+    meta: MetaDescriptor = field(default_factory=MetaDescriptor)
 
     _dependency_graph: networkx.DiGraph = field(init=False)
 

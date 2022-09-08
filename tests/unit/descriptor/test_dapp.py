@@ -45,6 +45,30 @@ from dapp_runner.descriptor.dapp import (
                     "simple-service": {
                         "payload": "simple-service",
                         "entrypoint": [
+                            ["/golem/run/simulate_observations_ctl.py", "--start"],
+                        ],
+                    }
+                },
+                "meta": {
+                    "name": "sample-app",
+                    "description": "a simple application",
+                    "ignored value": "some other meta information",
+                },
+            },
+            None,
+        ),
+        (
+            {
+                "payloads": {
+                    "simple-service": {
+                        "runtime": "vm",
+                        "params": {"image_hash": "some-hash"},
+                    }
+                },
+                "nodes": {
+                    "simple-service": {
+                        "payload": "simple-service",
+                        "entrypoint": [
                             "/golem/run/simulate_observations_ctl.py",
                             "--start",
                         ],
