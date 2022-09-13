@@ -2,6 +2,7 @@
 from dataclasses import dataclass, field, fields
 import networkx
 from typing import Dict, List, Any, Optional, Final, Tuple
+import warnings
 
 from .base import BaseDescriptor, DescriptorError
 
@@ -12,6 +13,8 @@ PAYLOAD_RUNTIME_VM: Final[str] = "vm"
 VM_PAYLOAD_CAPS_KWARG: Final[str] = "capabilities"
 
 DEPENDENCY_ROOT: Final[str] = ""
+
+EXEUNIT_CMD_RUN: Final[str] = "run"
 
 
 @dataclass
@@ -45,11 +48,60 @@ class HttpProxyDescriptor(BaseDescriptor["HttpProxyDescriptor"]):
 
 
 @dataclass
+class CommandDescriptor:
+    """Exeunit command descriptor."""
+
+    cmd: str
+    params: Dict[str, Any] = field(default_factory=dict)
+
+
+class _CommandDescriptorList:
+    """Preprocessor for the exescript commands."""
+
+    def _process_command(self, c):
+        if isinstance(c, list):
+            # assuming it's a `run`
+            self.commands.append(
+                CommandDescriptor(cmd=EXEUNIT_CMD_RUN, params={"args": c})
+            )
+        elif isinstance(c, dict):
+            for cmd, params in c.items():
+                if cmd == EXEUNIT_CMD_RUN and isinstance(params, list):
+                    # support shorthand `run` notation:
+                    # - run:
+                    #    - ["/golem/run/simulate_observations_ctl.py", "--start"]
+                    params = {"args": params}
+                self.commands.append(CommandDescriptor(cmd=cmd, params=params))
+        else:
+            raise DescriptorError(f"Cannot parse the command descriptor `{c}`.")
+
+    def __init__(self):
+        self.commands = list()
+
+    @classmethod
+    def load_commands(cls, value) -> List[CommandDescriptor]:
+        """Load the contents of the commands list."""
+        commands_list = cls()
+
+        if len(value) > 0 and isinstance(value[0], str):
+            # support single line definitions, e.g. `init: ["/docker-entrypoint.sh"]`
+            value = [value]
+
+        for c in value:
+            commands_list._process_command(c)
+
+        return commands_list.commands
+
+
+@dataclass
 class ServiceDescriptor(BaseDescriptor["ServiceDescriptor"]):
     """Yapapi Service descriptor."""
 
     payload: str
-    entrypoint: List[List[str]]
+    init: List[CommandDescriptor] = field(
+        metadata={"load": _CommandDescriptorList.load_commands}, default_factory=list
+    )
+    entrypoint: List[List[str]] = field(default_factory=list)
     network: Optional[str] = None
     ip: List[str] = field(default_factory=list)
     http_proxy: Optional[HttpProxyDescriptor] = None
@@ -57,8 +109,23 @@ class ServiceDescriptor(BaseDescriptor["ServiceDescriptor"]):
 
     def __validate_entrypoint(self):
         if self.entrypoint:
+            if self.init:
+                raise DescriptorError(
+                    "Cannot specify both `init` and `entrypoint`. "
+                    "Please use `init` only."
+                )
+            warnings.warn(
+                f"`{type(self).__name__}.entrypoint` is deprecated. "
+                f"Please use `init` instead.",
+                DeprecationWarning,
+            )
             if isinstance(self.entrypoint[0], str):
                 self.entrypoint = [self.entrypoint]  # noqa
+            for c in self.entrypoint:
+                self.init.append(
+                    CommandDescriptor(cmd=EXEUNIT_CMD_RUN, params={"args": c})
+                )
+        self.entrypoint = []
 
     def __post_init__(self):
         self.__validate_entrypoint()

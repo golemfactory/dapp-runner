@@ -5,6 +5,7 @@ from dapp_runner.descriptor import DappDescriptor, DescriptorError
 from dapp_runner.descriptor.dapp import (
     PayloadDescriptor,
     ServiceDescriptor,
+    CommandDescriptor,
     HttpProxyDescriptor,
     VM_PAYLOAD_CAPS_KWARG,
     vm,
@@ -146,7 +147,7 @@ def test_dapp_descriptor(descriptor_dict, error, test_utils):
         assert isinstance(payload, PayloadDescriptor)
         assert isinstance(service, ServiceDescriptor)
 
-        assert isinstance(service.entrypoint[0], list)
+        assert isinstance(service.init, list)
 
     except Exception as e:  # noqa
         test_utils.verify_error(error, e)
@@ -239,6 +240,52 @@ def test_http_proxy_descriptor(
             payload = list(dapp.payloads.values())[0]
             assert VM_PAYLOAD_CAPS_KWARG in payload.params
             assert vm.VM_CAPS_VPN in payload.params[VM_PAYLOAD_CAPS_KWARG]
+
+    except Exception as e:  # noqa
+        test_utils.verify_error(error, e)
+    else:
+        test_utils.verify_error(error, None)
+
+
+@pytest.mark.parametrize(
+    "descriptor_dict, expected_init, error",
+    [
+        (
+            {
+                "payload": "foo",
+                "entrypoint": ["test"],
+            },
+            [CommandDescriptor(params={"args": ["test"]}, cmd="run")],
+            None,
+        ),
+        (
+            {
+                "payload": "foo",
+                "init": ["test"],
+            },
+            [CommandDescriptor(params={"args": ["test"]}, cmd="run")],
+            None,
+        ),
+        (
+            {
+                "payload": "foo",
+                "init": ["test"],
+                "entrypoint": ["test"],
+            },
+            None,
+            DescriptorError(
+                "Cannot specify both `init` and `entrypoint`. "
+                "Please use `init` only."
+            ),
+        ),
+    ],
+)
+def test_service_init(test_utils, descriptor_dict, expected_init, error):
+    """Test the ServiceDescriptor's init/entrypoint field."""
+    try:
+        service = ServiceDescriptor.load(descriptor_dict)
+        assert isinstance(service, ServiceDescriptor)
+        assert service.init == expected_init
 
     except Exception as e:  # noqa
         test_utils.verify_error(error, e)
