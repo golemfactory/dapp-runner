@@ -51,7 +51,7 @@ class HttpProxyDescriptor(BaseDescriptor["HttpProxyDescriptor"]):
 class CommandDescriptor:
     """Exeunit command descriptor."""
 
-    cmd: str
+    cmd: str = EXEUNIT_CMD_RUN
     params: Dict[str, Any] = field(default_factory=dict)
 
 
@@ -61,9 +61,7 @@ class _CommandDescriptorList:
     def _process_command(self, c):
         if isinstance(c, list):
             # assuming it's a `run`
-            self.commands.append(
-                CommandDescriptor(cmd=EXEUNIT_CMD_RUN, params={"args": c})
-            )
+            self.commands.append(CommandDescriptor(params={"args": c}))
         elif isinstance(c, dict):
             for cmd, params in c.items():
                 if cmd == EXEUNIT_CMD_RUN and isinstance(params, list):
@@ -125,6 +123,7 @@ class ServiceDescriptor(BaseDescriptor["ServiceDescriptor"]):
                 self.init.append(
                     CommandDescriptor(cmd=EXEUNIT_CMD_RUN, params={"args": c})
                 )
+        # ensure it's not used anymore
         self.entrypoint = []
 
     def __post_init__(self):

@@ -315,6 +315,17 @@ def test_http_proxy_descriptor(
             ],
             None,
         ),
+        # ensure the shorthand `run` form 2 syntax works correctly
+        (
+            {
+                "payload": "foo",
+                "init": [{"run": ["test", "blah"]}],
+            },
+            [
+                CommandDescriptor("run", {"args": ["test", "blah"]}),
+            ],
+            None,
+        ),
         # two commands in one dict (accidental user's mistake)
         (
             {
