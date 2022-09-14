@@ -250,22 +250,39 @@ def test_http_proxy_descriptor(
 @pytest.mark.parametrize(
     "descriptor_dict, expected_init, error",
     [
+        # ensure the simplest version of init
+        # (implicitly interpreted as `run` with `args` given as a list)
+        # is correctly interpreted
         (
             {
                 "payload": "foo",
-                "entrypoint": ["test"],
+                "init": ["test", "blah"],
             },
-            [CommandDescriptor(params={"args": ["test"]}, cmd="run")],
+            [CommandDescriptor("run", {"args": ["test", "blah"]})],
             None,
         ),
+        # ensure previous, simplified `entrypoint` syntax is correctly converted
         (
             {
                 "payload": "foo",
-                "init": ["test"],
+                "entrypoint": ["test", "blah"],
             },
-            [CommandDescriptor(params={"args": ["test"]}, cmd="run")],
+            [CommandDescriptor("run", params={"args": ["test", "blah"]})],
             None,
         ),
+        # ensure previous, regular `entrypoint` syntax is correctly converted
+        (
+            {
+                "payload": "foo",
+                "entrypoint": [["test", "blah"], ["other command"]],
+            },
+            [
+                CommandDescriptor("run", {"args": ["test", "blah"]}),
+                CommandDescriptor("run", {"args": ["other command"]}),
+            ],
+            None,
+        ),
+        # ensure that one cannot provide both `init` and `entrypoint`
         (
             {
                 "payload": "foo",
@@ -278,6 +295,58 @@ def test_http_proxy_descriptor(
                 "Please use `init` only."
             ),
         ),
+        # check the empty init default
+        (
+            {
+                "payload": "foo",
+            },
+            [],
+            None,
+        ),
+        # ensure the shorthand `run` syntax works correctly
+        (
+            {
+                "payload": "foo",
+                "init": [["test", "blah"], ["other command"]],
+            },
+            [
+                CommandDescriptor("run", {"args": ["test", "blah"]}),
+                CommandDescriptor("run", {"args": ["other command"]}),
+            ],
+            None,
+        ),
+        # two commands in one dict (accidental user's mistake)
+        (
+            {
+                "payload": "foo",
+                "init": [
+                    {
+                        "run": {"args": ["test", "command"]},
+                        "test": {"param": ["another", "foo"]},
+                    }
+                ],
+            },
+            [
+                CommandDescriptor("run", {"args": ["test", "command"]}),
+                CommandDescriptor("test", {"param": ["another", "foo"]}),
+            ],
+            None,
+        ),
+        # check the regular syntax
+        (
+            {
+                "payload": "foo",
+                "init": [
+                    {"deploy": {"kwargs": {"foo": "bar"}}},
+                    {"run": {"args": ["test", "command"]}},
+                ],
+            },
+            [
+                CommandDescriptor("deploy", {"kwargs": {"foo": "bar"}}),
+                CommandDescriptor("run", {"args": ["test", "command"]}),
+            ],
+            None,
+        ),
     ],
 )
 def test_service_init(test_utils, descriptor_dict, expected_init, error):
@@ -286,6 +355,8 @@ def test_service_init(test_utils, descriptor_dict, expected_init, error):
         service = ServiceDescriptor.load(descriptor_dict)
         assert isinstance(service, ServiceDescriptor)
         assert service.init == expected_init
+        # the `entrypoint` should always stay empty from now on
+        assert service.entrypoint == []
 
     except Exception as e:  # noqa
         test_utils.verify_error(error, e)
