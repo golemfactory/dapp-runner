@@ -109,16 +109,16 @@ class ServiceDescriptor(BaseDescriptor["ServiceDescriptor"]):
 
     def __validate_entrypoint(self):
         if self.entrypoint:
-            if self.init:
-                raise DescriptorError(
-                    "Cannot specify both `init` and `entrypoint`. "
-                    "Please use `init` only."
-                )
             warnings.warn(
                 f"`{type(self).__name__}.entrypoint` is deprecated. "
                 f"Please use `init` instead.",
                 DeprecationWarning,
             )
+            if self.init:
+                raise DescriptorError(
+                    "Cannot specify both `init` and `entrypoint`. "
+                    "Please use `init` only."
+                )
             if isinstance(self.entrypoint[0], str):
                 self.entrypoint = [self.entrypoint]  # noqa
             for c in self.entrypoint:
