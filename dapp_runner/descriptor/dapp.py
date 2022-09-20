@@ -19,8 +19,8 @@ DEPENDENCY_ROOT: Final[str] = ""
 
 EXEUNIT_CMD_RUN: Final[str] = "run"
 
-VM_CAPS_VPN = "vpn"
-VM_CAPS_MANIFEST = "manifest-support"
+VM_CAPS_VPN: Final[str] = "vpn"
+VM_CAPS_MANIFEST: Final[str] = "manifest-support"
 
 
 @dataclass
