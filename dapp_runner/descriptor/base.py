@@ -76,7 +76,11 @@ class BaseDescriptor(Generic[DescriptorType]):
 
     @classmethod
     def _resolve_field(cls, f: Field, descriptor_value: Any, field_type=None):
-        if not field_type:
+        # field has a load function defined, so we're delegating the responsibility
+        if f.metadata.get("load"):
+            return f.metadata["load"](descriptor_value)
+
+        elif not field_type:
             field_type = f.type
 
         # field is a simple type (i.e. not a `typing` type hint)

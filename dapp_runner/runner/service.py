@@ -8,7 +8,11 @@ from yapapi.network import Network
 from yapapi.payload import Payload
 from yapapi.services import Service, ServiceState
 
-from dapp_runner.descriptor.dapp import ServiceDescriptor
+from dapp_runner.descriptor.dapp import (
+    ServiceDescriptor,
+    CommandDescriptor,
+    EXEUNIT_CMD_RUN,
+)
 
 from .error import RunnerError
 
@@ -16,16 +20,16 @@ from .error import RunnerError
 class DappService(Service):
     """Yapapi Service definition for the Dapp Runner services."""
 
-    entrypoint: List[List[str]]
+    init: List[CommandDescriptor]
     _previous_state: Optional[ServiceState] = None
     _tasks: List[asyncio.Task]
 
     data_queue: asyncio.Queue
     state_queue: asyncio.Queue
 
-    def __init__(self, entrypoint: List[List[str]], **kwargs):
+    def __init__(self, init: List[CommandDescriptor], **kwargs):
         super().__init__(**kwargs)
-        self.entrypoint = entrypoint
+        self.init = init
         self._tasks = []
 
         # initialize output queues
@@ -54,13 +58,18 @@ class DappService(Service):
         async for script in super().start():
             yield script
 
-        if self.entrypoint:
+        if self.init:
             script = self._ctx.new_script()  # type: ignore  # noqa - it's asserted in super().start()
-            for c in self.entrypoint:
-                script.run(*c)
-            entrypoint_output = yield script
+            for c in self.init:
+                if c.cmd == EXEUNIT_CMD_RUN:
+                    params = dict(c.params)
+                    args = params.pop("args")
+                    script.run(*args, **params)
+                else:
+                    raise RunnerError(f"Unsupported command: `{c.cmd}`.")
+            init_output = yield script
 
-            self.data_queue.put_nowait(await entrypoint_output)
+            self.data_queue.put_nowait(await init_output)
 
     async def run(self):
         """Report a state change after switching to `running`."""
@@ -103,7 +112,7 @@ async def get_service(
         raise RunnerError(f'Undefined payload: "{desc.payload}"')
 
     service_instance_params: dict = {}
-    service_instance_params["entrypoint"] = desc.entrypoint
+    service_instance_params["init"] = desc.init
 
     DappServiceClass = type(
         f"DappService-{name}",
