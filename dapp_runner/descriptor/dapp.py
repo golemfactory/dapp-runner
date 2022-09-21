@@ -9,12 +9,18 @@ from .base import BaseDescriptor, DescriptorError
 from yapapi.payload import vm
 
 NETWORK_DEFAULT_NAME: Final[str] = "default"
+
 PAYLOAD_RUNTIME_VM: Final[str] = "vm"
+PAYLOAD_RUNTIME_VM_MANIFEST: Final[str] = "vm/manifest"
+
 VM_PAYLOAD_CAPS_KWARG: Final[str] = "capabilities"
 
 DEPENDENCY_ROOT: Final[str] = ""
 
 EXEUNIT_CMD_RUN: Final[str] = "run"
+
+VM_CAPS_VPN: Final[str] = "vpn"
+VM_CAPS_MANIFEST: Final[str] = "manifest-support"
 
 
 @dataclass
@@ -201,6 +207,15 @@ class DappDescriptor(BaseDescriptor["DappDescriptor"]):
                     vm.VM_CAPS_VPN
                 ]
 
+    def __implicit_manifest_support(self):
+        """Add `manifest-support` capability to `vm/manifest` payloads ."""
+        for payload in self.payloads.values():
+            if (
+                payload.runtime == PAYLOAD_RUNTIME_VM_MANIFEST
+                and VM_PAYLOAD_CAPS_KWARG not in payload.params
+            ):
+                payload.params[VM_PAYLOAD_CAPS_KWARG] = [VM_CAPS_MANIFEST]
+
     def _resolve_dependencies(self):
         """Resolve instantiation priorities."""
 
@@ -243,4 +258,5 @@ class DappDescriptor(BaseDescriptor["DappDescriptor"]):
         self.__validate_nodes()
         self.__implicit_http_proxy_init()
         self.__implicit_vpn()
+        self.__implicit_manifest_support()
         self._resolve_dependencies()

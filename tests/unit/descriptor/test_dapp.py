@@ -8,7 +8,8 @@ from dapp_runner.descriptor.dapp import (
     CommandDescriptor,
     HttpProxyDescriptor,
     VM_PAYLOAD_CAPS_KWARG,
-    vm,
+    VM_CAPS_VPN,
+    VM_CAPS_MANIFEST,
 )
 
 
@@ -164,7 +165,7 @@ def test_dapp_descriptor(descriptor_dict, error, test_utils):
                 "nodes": {
                     "http": {
                         "payload": "foo",
-                        "entrypoint": [],
+                        "init": [],
                         "http_proxy": {
                             "ports": [
                                 "2525:25",
@@ -184,7 +185,7 @@ def test_dapp_descriptor(descriptor_dict, error, test_utils):
                 "nodes": {
                     "http": {
                         "payload": "foo",
-                        "entrypoint": [],
+                        "init": [],
                         "http_proxy": {
                             "ports": [
                                 "80",
@@ -204,7 +205,7 @@ def test_dapp_descriptor(descriptor_dict, error, test_utils):
                 "nodes": {
                     "http": {
                         "payload": "foo",
-                        "entrypoint": [],
+                        "init": [],
                         "http_proxy": {
                             "ports": [
                                 "80",
@@ -239,12 +240,69 @@ def test_http_proxy_descriptor(
         if implicit_vpn:
             payload = list(dapp.payloads.values())[0]
             assert VM_PAYLOAD_CAPS_KWARG in payload.params
-            assert vm.VM_CAPS_VPN in payload.params[VM_PAYLOAD_CAPS_KWARG]
+            assert VM_CAPS_VPN in payload.params[VM_PAYLOAD_CAPS_KWARG]
 
     except Exception as e:  # noqa
         test_utils.verify_error(error, e)
     else:
         test_utils.verify_error(error, None)
+
+
+@pytest.mark.parametrize(
+    "descriptor_dict, implicit_manifest",
+    [
+        (
+            {
+                "payloads": {"foo": {"runtime": "vm"}},
+                "nodes": {
+                    "http": {
+                        "payload": "foo",
+                        "init": [],
+                    }
+                },
+            },
+            False,
+        ),
+        (
+            {
+                "payloads": {"foo": {"runtime": "vm/manifest"}},
+                "nodes": {
+                    "http": {
+                        "payload": "foo",
+                        "init": [],
+                    }
+                },
+            },
+            True,
+        ),
+        (
+            {
+                "payloads": {
+                    "foo": {
+                        "runtime": "vm/manifest",
+                        "params": {"capabilities": ["vpn"]},
+                    }
+                },
+                "nodes": {
+                    "http": {
+                        "payload": "foo",
+                        "init": [],
+                    }
+                },
+            },
+            False,
+        ),
+    ],
+)
+def test_manifest_payload(descriptor_dict, implicit_manifest):
+    """Test whether `manifest_support` is implicitly added to the capabilities list."""
+    dapp = DappDescriptor.load(descriptor_dict)
+    payload = list(dapp.payloads.values())[0]
+    if implicit_manifest:
+        assert VM_PAYLOAD_CAPS_KWARG in payload.params
+        assert VM_CAPS_MANIFEST in payload.params[VM_PAYLOAD_CAPS_KWARG]
+    elif VM_PAYLOAD_CAPS_KWARG in payload.params:
+        assert VM_CAPS_MANIFEST not in payload.params[VM_PAYLOAD_CAPS_KWARG]
 
 
 @pytest.mark.parametrize(
