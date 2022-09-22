@@ -1,6 +1,6 @@
 """Python logging configuration for the `dapp-runner`."""
 import logging
-from pathlib import Path
+from typing import Optional
 import warnings
 
 from yapapi import __version__ as yapapi_version
@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def enable_logger(
-    log: Path,
+    log_file: Optional[str] = None,
     enable_warnings=False,
     console_log_level=logging.INFO,
     file_log_level=logging.DEBUG,
@@ -33,8 +33,6 @@ def enable_logger(
 
     formatter = _YagnaDatetimeFormatter(fmt=format_)
 
-    log_file = str(log.resolve())
-
     root = logging.getLogger()
     root.setLevel(logging.DEBUG)
 
@@ -43,21 +41,26 @@ def enable_logger(
     console_handler.setLevel(console_log_level)
     root.addHandler(console_handler)
 
-    file_handler = logging.FileHandler(filename=log_file, mode="w", encoding="utf-8")
-    file_handler.setFormatter(formatter)
-    file_handler.setLevel(file_log_level)
+    if log_file:
+        file_handler = logging.FileHandler(
+            filename=log_file, mode="w", encoding="utf-8"
+        )
+        file_handler.setFormatter(formatter)
+        file_handler.setLevel(file_log_level)
 
-    for name, level in (
-        ("dapp_runner", file_log_level),
-        ("yapapi", file_log_level),
-        ("ya_activity", api_log_level),
-        ("ya_market", api_log_level),
-        ("ya_payment", api_log_level),
-        ("ya_net", api_log_level),
-    ):
-        file_logger = logging.getLogger(name)
-        file_logger.setLevel(level)
-        file_logger.addHandler(file_handler)
+        for name, level in (
+            ("dapp_runner", file_log_level),
+            ("yapapi", file_log_level),
+            ("ya_activity", api_log_level),
+            ("ya_market", api_log_level),
+            ("ya_payment", api_log_level),
+            ("ya_net", api_log_level),
+        ):
+            file_logger = logging.getLogger(name)
+            file_logger.setLevel(level)
+            file_logger.addHandler(file_handler)
 
     logger.debug("Yapapi version: %s", yapapi_version)
-    logger.info("Using log file `%s`", log_file)
+
+    if log_file:
+        logger.info("Using log file `%s`", log_file)

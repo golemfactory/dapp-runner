@@ -117,7 +117,7 @@ def start(
             kwargs[param_name] = app_dir / param_name
 
     enable_logger(
-        log=kwargs.pop("log"),
+        log_file=str(kwargs.pop("log").resolve()),
         enable_warnings=kwargs.pop("dev"),
         console_log_level=logging.DEBUG if kwargs.pop("debug") else logging.INFO,
     )
@@ -142,6 +142,12 @@ def verify(
     Loads the descriptors and prints the interpreted value
     or reports the encountered error.
     """
+
+    enable_logger(
+        log_file=None,
+        enable_warnings=True,
+    )
+
     dapp_dict = load_yamls(*descriptors)
     ctx.exit(0 if verify_dapp(dapp_dict) else 1)
 
