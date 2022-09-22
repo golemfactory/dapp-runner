@@ -149,11 +149,6 @@ nodes:
         - "80"  # specify just the remote port, allow the local port to be automatically chosen
 ```
 
-Importantly, this example omits the definition of the `networks` object. As it specifies
-the `http_proxy` element of a `nodes` entry, it causes the `dapp-runner` to implicitly
-add the `networks` object with a default of a single IPv4 network. Additionally, it adds
-the `vpn` capability to the requested parameters of the deployed `vm` runtime.
-
 #### Web application
 
 And here's an example of a slightly more complex application (`webapp.yaml`), that uses
@@ -194,6 +189,28 @@ networks:
   default:
     ip: "192.168.0.0/24"
 ```
+
+#### Implicit properties
+
+##### The `networks` definition and the `vpn` capability
+
+As can be seen in the `http_proxy` example above, the `networks` definition can be omitted.
+
+Adding a `http_proxy` element to a `nodes` entry, causes the `dapp-runner` to implicitly
+add the `networks` object with a default of a single IPv4 network. Additionally, it adds
+the `vpn` capability to the requested parameters of the deployed `vm` runtime.
+
+***Note:*** The `networks` and `capabilities` objects will only be implicitly added if
+they are not already present in the descriptor. If the application specifies any of
+those objects, it is assumed that the application authors know what they're doing.
+
+##### The `manifest-support` capability
+
+Similarly, specifying the payload as `vm/manifest` implicitly adds `manifest-support` to
+the requested `capabilities` for the runtime.
+
+***Note:*** Again, this is only done if the `payload.params` doesn't already contain the
+`capabilities` object.
 
 ## Usage
 
