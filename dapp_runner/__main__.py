@@ -15,13 +15,13 @@ import shortuuid
 
 from dapp_runner import MODULE_AUTHOR, MODULE_NAME
 from dapp_runner.descriptor.parser import load_yamls
+from dapp_runner.log import enable_logger
 from dapp_runner.runner import start_runner, verify_dapp
-
 
 logger = logging.getLogger(__name__)
 
 
-@click.group()
+@click.group
 def _cli():
     pass
 
@@ -73,6 +73,18 @@ def _get_run_dir(run_id: str) -> Path:
     required=True,
     help="Path to the file containing yagna-specific config.",
 )
+@click.option(
+    "--dev",
+    is_flag=True,
+    default=False,
+    help="Run in a development mode (enable warnings).",
+)
+@click.option(
+    "--debug",
+    is_flag=True,
+    default=False,
+    help="Display debug messages in the console.",
+)
 @click.argument(
     "descriptors",
     nargs=-1,
@@ -104,6 +116,12 @@ def start(
         if not param_value:
             kwargs[param_name] = app_dir / param_name
 
+    enable_logger(
+        log_file=str(kwargs.pop("log").resolve()),
+        enable_warnings=kwargs.pop("dev"),
+        console_log_level=logging.DEBUG if kwargs.pop("debug") else logging.INFO,
+    )
+
     start_runner(config_dict, dapp_dict, **kwargs)
 
 
@@ -124,6 +142,12 @@ def verify(
     Loads the descriptors and prints the interpreted value
     or reports the encountered error.
     """
+
+    enable_logger(
+        log_file=None,
+        enable_warnings=True,
+    )
+
     dapp_dict = load_yamls(*descriptors)
     ctx.exit(0 if verify_dapp(dapp_dict) else 1)
 

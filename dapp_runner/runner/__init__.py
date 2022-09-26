@@ -3,12 +3,11 @@ from colors import yellow, cyan, magenta, green
 from contextlib import ExitStack, redirect_stdout, redirect_stderr
 from datetime import datetime, timedelta, timezone
 import json
+import logging
 from pathlib import Path
 import sys
 import traceback
 from typing import TextIO, Optional
-
-from yapapi.log import enable_default_logger
 
 from dapp_runner.descriptor import Config, DappDescriptor, DescriptorError
 from dapp_runner._util import _print_env_info
@@ -19,11 +18,12 @@ from .streams import RunnerStreamer
 
 STARTING_TIMEOUT = timedelta(minutes=4)
 
+logger = logging.getLogger(__name__)
+
 
 async def _run_app(
     config_dict: dict,
     dapp_dict: dict,
-    log: Path,
     data_f: TextIO,
     state_f: TextIO,
     silent=False,
@@ -31,14 +31,6 @@ async def _run_app(
     """Run the dapp using the Runner."""
     config = Config.load(config_dict)
     dapp = DappDescriptor.load(dapp_dict)
-
-    enable_default_logger(
-        log_file=str(log.resolve()),
-        debug_activity_api=True,
-        debug_market_api=True,
-        debug_payment_api=True,
-        debug_net_api=True,
-    )
 
     r = Runner(config=config, dapp=dapp)
     _print_env_info(r.golem)
@@ -88,7 +80,6 @@ def start_runner(
     config_dict: dict,
     dapp_dict: dict,
     data: Path,
-    log: Path,
     state: Path,
     stdout: Optional[Path] = None,
     stderr: Optional[Path] = None,
@@ -112,7 +103,7 @@ def start_runner(
 
         loop = asyncio.get_event_loop()
         task = loop.create_task(
-            _run_app(config_dict, dapp_dict, log, data_f, state_f, silent)
+            _run_app(config_dict, dapp_dict, data_f, state_f, silent)
         )
 
         try:
