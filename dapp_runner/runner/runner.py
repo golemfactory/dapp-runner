@@ -1,7 +1,7 @@
 """Main Dapp Runner module."""
 import asyncio
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional, Dict, List, Final
 
 from yapapi import Golem
@@ -14,7 +14,7 @@ from yapapi.services.service_state import ServiceState
 
 from dapp_runner.descriptor import Config, DappDescriptor
 from dapp_runner.descriptor.dapp import PortMapping, ServiceDescriptor
-from dapp_runner._util import get_free_port
+from dapp_runner._util import get_free_port, utcnow
 
 from .payload import get_payload
 from .service import get_service, DappService
@@ -135,7 +135,7 @@ class Runner:
 
     async def start(self):
         """Start the Golem engine and the dapp."""
-        self.commissioning_time = datetime.now(tz=timezone.utc)
+        self.commissioning_time = utcnow()
         await self.golem.start()
 
         await self._create_networks()

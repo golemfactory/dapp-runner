@@ -9,3 +9,7 @@ payment:
   budget: 1.0  # GLM
   driver: "erc20"
   network: "rinkeby"
+
+#limits:
+#  startup_timeout: 300  # timeout for the provisioning of the app (seconds)
+#  max_running_time: 10  # the maximum running time for the app (seconds)

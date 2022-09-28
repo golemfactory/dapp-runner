@@ -1,7 +1,7 @@
 import asyncio
-from colors import yellow, cyan, magenta, green
+from colors import cyan, magenta, green
 from contextlib import ExitStack, redirect_stdout, redirect_stderr
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 import json
 import logging
 from pathlib import Path
@@ -10,13 +10,13 @@ import traceback
 from typing import TextIO, Optional
 
 from dapp_runner.descriptor import Config, DappDescriptor, DescriptorError
-from dapp_runner._util import _print_env_info
+from dapp_runner._util import _print_env_info, utcnow
 
 from .runner import Runner
 from .error import RunnerError
 from .streams import RunnerStreamer
 
-STARTING_TIMEOUT = timedelta(minutes=4)
+DEFAULT_STARTUP_TIMEOUT = 240  # seconds
 
 logger = logging.getLogger(__name__)
 
@@ -51,27 +51,52 @@ async def _run_app(
         )
 
     assert r.commissioning_time  # sanity check for mypy
+
+    startup_timeout = timedelta(
+        seconds=config.limits.startup_timeout or DEFAULT_STARTUP_TIMEOUT
+    )
+
+    max_running_time: Optional[timedelta] = None
+    if config.limits.max_running_time:
+        max_running_time = timedelta(seconds=config.limits.max_running_time)
+
+    logger.info(
+        "Starting app: %s, startup timeout: %s, maximum running time: %s",
+        dapp.meta.name,
+        startup_timeout,
+        max_running_time,
+    )
+
+    time_started: Optional[datetime] = None
+
     try:
-        while (
-            not r.dapp_started
-            and datetime.now(timezone.utc) < r.commissioning_time + STARTING_TIMEOUT
-        ):
+        while not r.dapp_started and utcnow() < r.commissioning_time + startup_timeout:
             await asyncio.sleep(1)
 
         if not r.dapp_started:
             raise Exception(
-                f"Failed to start instances before {STARTING_TIMEOUT} elapsed."
+                f"Failed to start instances before {startup_timeout} elapsed."
             )
 
-        print(yellow("Dapp started."))
+        time_started = utcnow()
+        logger.info("Application started.")
 
-        while r.dapp_started:
+        while r.dapp_started and (
+            not max_running_time or utcnow() < time_started + max_running_time
+        ):
             await asyncio.sleep(1)
 
     except asyncio.CancelledError:
-        pass
+        logger.info("Sigint received.")
     finally:
-        print(yellow("Stopping the dapp..."))
+        if (
+            max_running_time
+            and time_started
+            and utcnow() > time_started + max_running_time
+        ):
+            logger.info("Maximum running time: %s elapsed.", max_running_time)
+
+        logger.info("Stopping the application...")
         await r.stop()
         await streamer.stop()
 
@@ -109,11 +134,11 @@ def start_runner(
         try:
             loop.run_until_complete(task)
         except KeyboardInterrupt:
-            print(yellow("Shutting down ..."))
+            logger.info("Shutting down ...")
             task.cancel()
             try:
                 loop.run_until_complete(task)
-                print(yellow("Shutdown completed"))
+                logger.info("Shutdown completed")
             except (asyncio.CancelledError, KeyboardInterrupt):
                 pass
         except Exception:  # noqa
