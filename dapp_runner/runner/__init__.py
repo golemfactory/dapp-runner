@@ -21,6 +21,15 @@ DEFAULT_STARTUP_TIMEOUT = 240  # seconds
 logger = logging.getLogger(__name__)
 
 
+def _running_time_elapsed(
+    time_started: Optional[datetime],
+    max_running_time: Optional[timedelta],
+) -> bool:
+    return bool(
+        time_started and max_running_time and utcnow() > time_started + max_running_time
+    )
+
+
 async def _run_app(
     config_dict: dict,
     dapp_dict: dict,
@@ -81,19 +90,15 @@ async def _run_app(
         time_started = utcnow()
         logger.info("Application started.")
 
-        while r.dapp_started and (
-            not max_running_time or utcnow() < time_started + max_running_time
+        while r.dapp_started and not _running_time_elapsed(
+            time_started, max_running_time
         ):
             await asyncio.sleep(1)
 
     except asyncio.CancelledError:
         logger.info("Sigint received.")
     finally:
-        if (
-            max_running_time
-            and time_started
-            and utcnow() > time_started + max_running_time
-        ):
+        if _running_time_elapsed(time_started, max_running_time):
             logger.info("Maximum running time: %s elapsed.", max_running_time)
 
         logger.info("Stopping the application...")
