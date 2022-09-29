@@ -9,6 +9,19 @@ and uses [yapapi](https://github.com/golemfactory/yapapi), Golem's Python high-l
 to communicate with it. As opposed to using plain `yapapi` though, deployment of
 applications on Golem using `dapp-runner` requires no code and no experience in Python.
 
+### GAP-16 / Multi-service application deployment framework
+
+In its present form, the `dapp-runner` constitutes an initial reference implementation
+of the multi-service application deployment framework described in
+[GAP-16](https://github.com/golemfactory/golem-architecture/pull/39).
+
+Following features of the framework are currently supported:
+* Descriptor "Apply" operation
+* Single-YAML package support
+* Merging descriptor files
+* GAOM explicit dependency syntax
+* GAOM object dependency graph *[currently limited to the services' explicit dependency syntax]*
+
 ### Relationship with `dapp-manager`
 
 While the `dapp-runner` is perfectly capable of running decentralized apps on its own, we are also
@@ -120,9 +133,8 @@ Press Ctrl-C in the terminal where you ran `dapp-runner` to initiate its shutdow
 ## Application descriptor
 
 As mentioned above, the decentralized applications that are deployed on Golem by the
-`dapp-runner` are described in `yaml` files, ultimately conforming to the schema
-described in [GAP-16](https://github.com/golemfactory/golem-architecture/pull/39)
-(currently with minor diversions).
+`dapp-runner` are described in `yaml` files, conforming to the schema
+described in [GAP-16](https://github.com/golemfactory/golem-architecture/pull/39).
 
 ### Example descriptor
 
