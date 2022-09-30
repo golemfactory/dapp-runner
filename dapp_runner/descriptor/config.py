@@ -41,8 +41,17 @@ class PaymentConfig:
 
 
 @dataclass
+class LimitsConfig:
+    """Limits of the running app."""
+
+    startup_timeout: Optional[int] = None  # seconds
+    max_running_time: Optional[int] = None  # seconds
+
+
+@dataclass
 class Config(BaseDescriptor["Config"]):
     """Root configuration descriptor for the Dapp Runner."""
 
     yagna: YagnaConfig
     payment: PaymentConfig
+    limits: LimitsConfig = field(default_factory=LimitsConfig)

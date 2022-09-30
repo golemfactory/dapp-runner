@@ -1,4 +1,5 @@
 """Class definitions for the Dapp Runner's dapp descriptor."""
+import logging
 from dataclasses import dataclass, field, fields
 import networkx
 from typing import Dict, List, Any, Optional, Final, Tuple
@@ -21,6 +22,8 @@ EXEUNIT_CMD_RUN: Final[str] = "run"
 
 VM_CAPS_VPN: Final[str] = "vpn"
 VM_CAPS_MANIFEST: Final[str] = "manifest-support"
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -162,6 +165,8 @@ class MetaDescriptor:
         for f in fields(self):
             if f.name in kwargs:
                 setattr(self, f.name, f.type(kwargs.pop(f.name)))
+        if kwargs:
+            logger.debug("Unrecognized `meta` fields: %s", kwargs)
 
 
 @dataclass
