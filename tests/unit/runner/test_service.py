@@ -79,7 +79,7 @@ async def test_service_init(mock_work_context, init, expected_script):
                 "init": [CommandDescriptor(params={"args": ["/some/binary"]})],
                 "_remote_port": 80,
                 "_remote_host": None,
-                "_remote_response_timeout": 10.0,
+                "_remote_response_timeout": 30.0,
             },
             None,
         ),

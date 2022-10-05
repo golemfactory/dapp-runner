@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dapp-runner"
-version = "0.0.1"
+version = "0.0.0-alpha.0"
 description = "Golem dapp-runner - a high-level interface for running decentralized applications using the Golem Network."
 authors = ["Golem Factory <contact@golem.network>"]
 license = "LGPL-3.0"
@@ -37,17 +37,44 @@ poethepoet = "^0.13"
 pytest = "^7.1"
 pytest-asyncio = "^0.18.3"
 pytest-cov = "^3.0.0"
+liccheck = "^0.7.2"
 
 [tool.poetry.scripts]
 dapp-runner = "dapp_runner.__main__:_cli"
 
+[tool.liccheck]
+authorized_licenses = [
+  "bsd",
+  "new bsd",
+  "bsd license",
+  "apache 2",
+  "apache",
+  "Apache Software",
+  "MPL-2.0",
+  "Mozilla Public License 2.0 (MPL 2.0)",
+  "MIT",
+  "LGPL",
+  "LGPL-3.0-or-later",
+  "GNU Lesser General Public License v3 or later (LGPLv3+)",
+  "GNU Lesser General Public License v3 (LGPLv3)",
+  "Python Software Foundation",
+  "ISC",
+  "ISC License (ISCL)",
+]
+unauthorized_licenses = [
+  "gpl v3"
+]
+
 [tool.poe.tasks]
-code_check = "flake8"
-code_format = "black --check --diff ."
-code_typing = "mypy --install-types --non-interactive --ignore-missing-imports --check-untyped-defs --warn-unused-ignores --show-error-codes ."
-all_checks = ["code_check", "code_format", "code_typing"]
-unit_test = "pytest --cov --cov-report html --cov-report term -sv tests/unit"
-test = ["unit_test", "all_checks"]
+lint = "flake8"
+codestyle = "black --check --diff ."
+typecheck  = "mypy --install-types --non-interactive --ignore-missing-imports --check-untyped-defs --warn-unused-ignores --show-error-codes ."
+_liccheck_export = "poetry export -f requirements.txt -o .requirements.txt"
+_liccheck_verify = "liccheck -r .requirements.txt"
+liccheck = ["_liccheck_export", "_liccheck_verify"]
+check = ["lint", "codestyle", "typecheck", "liccheck"]
+unittest = "pytest --cov --cov-report html --cov-report term -sv tests/unit"
+test = ["unittest", "check"]
 
 [tool.pytest.ini_options]
 asyncio_mode= "auto"
