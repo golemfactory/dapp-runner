@@ -8,7 +8,7 @@ on:
       - main
 
 jobs:
-  test:
+  check:
     name: Run code checks
     runs-on: ${{ matrix.os }}
     strategy:
@@ -20,14 +20,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-python@v3
+      - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
       - uses: Gr1N/setup-poetry@v7
         with:
-          poetry-version: 1.1.13
+          poetry-version: 1.2.0
 
       - run: poetry install
-      - run: poetry run poe code_check
-      - run: poetry run poe code_format
-      - run: poetry run poe code_typing
+      - run: poetry run poe lint
+      - run: poetry run poe codestyle
+      - run: poetry run poe typecheck
+      - run: poetry run poe liccheck
