@@ -5,7 +5,7 @@ on:
     types: [prereleased, released]
 
 jobs:
-  release-test:
+  release_test:
     name: Run checks
     runs-on: ubuntu-latest
 
@@ -21,7 +21,7 @@ jobs:
       - run: poetry run poe test
 
   build:
-    needs: [release-test]
+    needs: [release_test]
     name: Build the release
     runs-on: ubuntu-latest
 
