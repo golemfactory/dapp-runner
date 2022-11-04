@@ -17,10 +17,6 @@ classifiers = [
 repository = "https://github.com/golemfactory/dapp-runner"
 readme = "README.md"
 
-[[tool.poetry.source]]
-name = "testpypi"
-url = "https://test.pypi.org/simple/"
-
 [tool.poetry.dependencies]
 python = "^3.8"
 appdirs = "^1.4"
@@ -45,6 +41,12 @@ liccheck = "^0.7.2"
 
 [tool.poetry.scripts]
 dapp-runner = "dapp_runner.__main__:_cli"
+
+[[tool.poetry.source]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+default = false
+secondary = true
 
 [tool.liccheck]
 authorized_licenses = [
