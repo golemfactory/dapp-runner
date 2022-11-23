@@ -32,7 +32,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - uses: Gr1N/setup-poetry@v7
         with:
-          poetry-version: 1.2.0
+          poetry-version: 1.2.2
 
+      - run: python -m pip install --upgrade pip
       - run: poetry install
       - run: poetry run poe unittest
