@@ -2,6 +2,7 @@
 import asyncio
 from dataclasses import asdict
 from datetime import datetime
+import logging
 from typing import Optional, Dict, List, Final
 
 from yapapi import Golem
@@ -21,6 +22,8 @@ from .service import get_service, DappService
 
 LOCAL_PROXY_DATA_KEY: Final[str] = "local_proxy_address"
 DEPENDENCY_WAIT_INTERVAL: Final[float] = 1.0
+
+logger = logging.getLogger(__name__)
 
 
 class Runner:
@@ -101,6 +104,11 @@ class Runner:
                 ):
                     await asyncio.sleep(DEPENDENCY_WAIT_INTERVAL)
 
+        logger.debug(
+            "Starting service: %s, descriptor: %s",
+            service_name,
+            service_descriptor
+        )
         cluster_class, run_params = await get_service(
             service_name, service_descriptor, self._payloads, self._networks
         )
