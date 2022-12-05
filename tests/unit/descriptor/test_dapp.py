@@ -7,6 +7,8 @@ from dapp_runner.descriptor.dapp import (
     ServiceDescriptor,
     CommandDescriptor,
     HttpProxyDescriptor,
+    SocketProxyDescriptor,
+    PortMapping,
     VM_PAYLOAD_CAPS_KWARG,
     VM_CAPS_VPN,
     VM_CAPS_MANIFEST,
@@ -156,9 +158,41 @@ def test_dapp_descriptor(descriptor_dict, error, test_utils):
         test_utils.verify_error(error, None)
 
 
+def _test_proxy_descriptor(
+    proxy_property,
+    proxy_class,
+    test_utils,
+    descriptor_dict,
+    port_mappings,
+    error,
+    implicit_vpn,
+):
+    try:
+        dapp = DappDescriptor.load(descriptor_dict)
+        service = list(dapp.nodes.values())[0]
+        proxy = getattr(service, proxy_property)
+        assert isinstance(proxy, proxy_class)
+        assert proxy.ports == port_mappings
+
+        # check implicit network initialization
+        assert service.network
+
+        # check implicit VPN capability for a VM runtime
+        if implicit_vpn:
+            payload = list(dapp.payloads.values())[0]
+            assert VM_PAYLOAD_CAPS_KWARG in payload.params
+            assert VM_CAPS_VPN in payload.params[VM_PAYLOAD_CAPS_KWARG]
+
+    except Exception as e:  # noqa
+        test_utils.verify_error(error, e)
+    else:
+        test_utils.verify_error(error, None)
+
+
 @pytest.mark.parametrize(
-    "descriptor_dict, remote_port, local_port, error, implicit_vpn",
+    "descriptor_dict, port_mappings, error, implicit_vpn",
     [
+        # remote port + local port pair
         (
             {
                 "payloads": {"foo": {"runtime": "bar"}},
@@ -174,11 +208,11 @@ def test_dapp_descriptor(descriptor_dict, error, test_utils):
                     }
                 },
             },
-            25,
-            2525,
+            [PortMapping(25, 2525)],
             None,
             False,
         ),
+        # only remote port
         (
             {
                 "payloads": {"foo": {"runtime": "bar"}},
@@ -194,11 +228,27 @@ def test_dapp_descriptor(descriptor_dict, error, test_utils):
                     }
                 },
             },
-            80,
-            None,
+            [PortMapping(80)],
             None,
             False,
         ),
+        # multiple ports
+        (
+            {
+                "payloads": {"foo": {"runtime": "bar"}},
+                "nodes": {
+                    "http": {
+                        "payload": "foo",
+                        "init": [],
+                        "http_proxy": {"ports": ["80", "1234"]},
+                    }
+                },
+            },
+            [PortMapping(80), PortMapping(1234)],
+            None,
+            False,
+        ),
+        # vm runtime -> http proxy results in implicit addition of a VPN capability
         (
             {
                 "payloads": {"foo": {"runtime": "vm"}},
@@ -214,38 +264,121 @@ def test_dapp_descriptor(descriptor_dict, error, test_utils):
                     }
                 },
             },
-            80,
-            None,
+            [PortMapping(80)],
             None,
             True,
         ),
     ],
 )
 def test_http_proxy_descriptor(
-    test_utils, descriptor_dict, remote_port, local_port, error, implicit_vpn
+    test_utils, descriptor_dict, port_mappings, error, implicit_vpn
 ):
     """Test whether the `http_proxy` descriptor is correctly interpreted."""
-    try:
-        dapp = DappDescriptor.load(descriptor_dict)
-        service = list(dapp.nodes.values())[0]
-        assert isinstance(service.http_proxy, HttpProxyDescriptor)
-        ports = service.http_proxy.ports[0]
-        assert ports.local_port == local_port
-        assert ports.remote_port == remote_port
+    _test_proxy_descriptor(
+        "http_proxy",
+        HttpProxyDescriptor,
+        test_utils,
+        descriptor_dict,
+        port_mappings,
+        error,
+        implicit_vpn,
+    )
 
-        # check implicit network initialization
-        assert service.network
 
-        # check implicit VPN capability for a VM runtime
-        if implicit_vpn:
-            payload = list(dapp.payloads.values())[0]
-            assert VM_PAYLOAD_CAPS_KWARG in payload.params
-            assert VM_CAPS_VPN in payload.params[VM_PAYLOAD_CAPS_KWARG]
-
-    except Exception as e:  # noqa
-        test_utils.verify_error(error, e)
-    else:
-        test_utils.verify_error(error, None)
+@pytest.mark.parametrize(
+    "descriptor_dict, port_mappings, error, implicit_vpn",
+    [
+        # remote port + local port pair
+        (
+            {
+                "payloads": {"foo": {"runtime": "bar"}},
+                "nodes": {
+                    "http": {
+                        "payload": "foo",
+                        "init": [],
+                        "tcp_proxy": {
+                            "ports": [
+                                "2525:25",
+                            ]
+                        },
+                    }
+                },
+            },
+            [PortMapping(25, 2525)],
+            None,
+            False,
+        ),
+        # only remote port
+        (
+            {
+                "payloads": {"foo": {"runtime": "bar"}},
+                "nodes": {
+                    "http": {
+                        "payload": "foo",
+                        "init": [],
+                        "tcp_proxy": {
+                            "ports": [
+                                "80",
+                            ]
+                        },
+                    }
+                },
+            },
+            [PortMapping(80)],
+            None,
+            False,
+        ),
+        # multiple ports
+        (
+            {
+                "payloads": {"foo": {"runtime": "bar"}},
+                "nodes": {
+                    "http": {
+                        "payload": "foo",
+                        "init": [],
+                        "tcp_proxy": {"ports": ["80", "1234"]},
+                    }
+                },
+            },
+            [PortMapping(80), PortMapping(1234)],
+            None,
+            False,
+        ),
+        # vm runtime -> http proxy results in implicit addition of a VPN capability
+        (
+            {
+                "payloads": {"foo": {"runtime": "vm"}},
+                "nodes": {
+                    "http": {
+                        "payload": "foo",
+                        "init": [],
+                        "tcp_proxy": {
+                            "ports": [
+                                "80",
+                            ]
+                        },
+                    }
+                },
+            },
+            [PortMapping(80)],
+            None,
+            True,
+        ),
+    ],
+)
+def test_tcp_proxy_descriptor(
+    test_utils, descriptor_dict, port_mappings, error, implicit_vpn
+):
+    """Test whether the `tcp_proxy` descriptor is correctly interpreted."""
+    _test_proxy_descriptor(
+        "tcp_proxy",
+        SocketProxyDescriptor,
+        test_utils,
+        descriptor_dict,
+        port_mappings,
+        error,
+        implicit_vpn,
+    )
 
 
 @pytest.mark.parametrize(

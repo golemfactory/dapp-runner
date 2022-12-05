@@ -105,9 +105,7 @@ class Runner:
                     await asyncio.sleep(DEPENDENCY_WAIT_INTERVAL)
 
         logger.debug(
-            "Starting service: %s, descriptor: %s",
-            service_name,
-            service_descriptor
+            "Starting service: %s, descriptor: %s", service_name, service_descriptor
         )
         cluster_class, run_params = await get_service(
             service_name, service_descriptor, self._payloads, self._networks
