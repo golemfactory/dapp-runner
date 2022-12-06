@@ -24,7 +24,7 @@ click = "^8.1"
 dpath = "^2.0"
 pyyaml = "^6.0"
 shortuuid = "^1.0"
-yapapi = { version = "==0.10.0a1", source = "testpypi" }
+yapapi = { version = "==0.10.0", source = "testpypi" }
 ansicolors = "^1.1.8"
 networkx = "^2.8"
 

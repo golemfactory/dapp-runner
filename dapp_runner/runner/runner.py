@@ -2,15 +2,16 @@
 import asyncio
 from dataclasses import asdict
 from datetime import datetime
+import logging
 from typing import Optional, Dict, List, Final
 
 from yapapi import Golem
 from yapapi.contrib.service.http_proxy import LocalHttpProxy
+from yapapi.contrib.service.socket_proxy import SocketProxy
 from yapapi.events import CommandExecuted
 from yapapi.network import Network
 from yapapi.payload import Payload
-from yapapi.services.cluster import Cluster
-from yapapi.services.service_state import ServiceState
+from yapapi.services import Cluster, Service, ServiceState
 
 from dapp_runner.descriptor import Config, DappDescriptor
 from dapp_runner.descriptor.dapp import PortMapping, ServiceDescriptor
@@ -19,8 +20,11 @@ from dapp_runner._util import get_free_port, utcnow
 from .payload import get_payload
 from .service import get_service, DappService
 
-LOCAL_PROXY_DATA_KEY: Final[str] = "local_proxy_address"
+LOCAL_HTTP_PROXY_DATA_KEY: Final[str] = "local_proxy_address"
+LOCAL_TCP_PROXY_DATA_KEY: Final[str] = "local_tcp_proxy_address"
 DEPENDENCY_WAIT_INTERVAL: Final[float] = 1.0
+
+logger = logging.getLogger(__name__)
 
 
 class Runner:
@@ -37,7 +41,8 @@ class Runner:
     commissioning_time: Optional[datetime]
 
     _payloads: Dict[str, Payload]
-    _proxies: Dict[str, LocalHttpProxy]
+    _http_proxies: Dict[str, LocalHttpProxy]
+    _tcp_proxies: Dict[str, SocketProxy]
     _networks: Dict[str, Network]
     _tasks: List[asyncio.Task]
     _startup_finished: bool
@@ -59,7 +64,8 @@ class Runner:
 
         self.clusters = {}
         self._payloads = {}
-        self._proxies = {}
+        self._http_proxies = {}
+        self._tcp_proxies = {}
         self._networks = {}
         self._tasks = []
         self.data_queue = asyncio.Queue()
@@ -74,7 +80,7 @@ class Runner:
         for name, desc in self.dapp.payloads.items():
             self._payloads[name] = await get_payload(desc)
 
-    async def _start_local_proxy(
+    async def _start_local_http_proxy(
         self, name: str, cluster: Cluster, port_mapping: PortMapping
     ):
         # wait until the service is running before starting the proxy
@@ -85,9 +91,25 @@ class Runner:
         proxy = LocalHttpProxy(cluster, port)
         await proxy.run()
 
-        self._proxies[name] = proxy
+        self._http_proxies[name] = proxy
         self.data_queue.put_nowait(
-            {name: {LOCAL_PROXY_DATA_KEY: f"http://localhost:{port}"}}
+            {name: {LOCAL_HTTP_PROXY_DATA_KEY: f"http://localhost:{port}"}}
+        )
+
+    async def _start_local_tcp_proxy(
+        self, name: str, service: Service, port_mapping: PortMapping
+    ):
+        # wait until the service is running before starting the proxy
+        while not self._is_cluster_state(name, ServiceState.running):
+            await asyncio.sleep(DEPENDENCY_WAIT_INTERVAL)
+
+        port = port_mapping.local_port or get_free_port()
+        proxy = SocketProxy([port])
+        await proxy.run_server(service, port_mapping.remote_port)
+
+        self._tcp_proxies[name] = proxy
+        self.data_queue.put_nowait(
+            {name: {LOCAL_TCP_PROXY_DATA_KEY: f"localhost:{port}"}}
         )
 
     async def _start_service(
@@ -101,21 +123,32 @@ class Runner:
                 ):
                     await asyncio.sleep(DEPENDENCY_WAIT_INTERVAL)
 
+        logger.debug(
+            "Starting service: %s, descriptor: %s", service_name, service_descriptor
+        )
         cluster_class, run_params = await get_service(
             service_name, service_descriptor, self._payloads, self._networks
         )
         cluster = await self.start_cluster(service_name, cluster_class, run_params)
 
+        # start the tasks for the local proxies so that
+        # it doesn't delay the initialization process
         if service_descriptor.http_proxy:
-            # start the task for the local proxy so that
-            # it doesn't delay the initialization process
-            self._tasks.append(
-                asyncio.create_task(
-                    self._start_local_proxy(
-                        service_name, cluster, service_descriptor.http_proxy.ports[0]
+            for port in service_descriptor.http_proxy.ports:
+                self._tasks.append(
+                    asyncio.create_task(
+                        self._start_local_http_proxy(service_name, cluster, port)
                     )
                 )
-            )
+
+        if service_descriptor.tcp_proxy:
+            for port in service_descriptor.tcp_proxy.ports:
+                for service in cluster.instances:
+                    self._tasks.append(
+                        asyncio.create_task(
+                            self._start_local_tcp_proxy(service_name, service, port)
+                        )
+                    )
 
         # launch queue listeners for all the service instances
         for idx in range(len(cluster.instances)):
@@ -246,8 +279,9 @@ class Runner:
         """Stop the dapp and the Golem engine."""
         service_tasks: List[asyncio.Task] = []
 
-        proxies = self._proxies.values()
-        await asyncio.gather(*[p.stop() for p in proxies])
+        proxy_tasks = [p.stop() for p in self._http_proxies.values()]
+        proxy_tasks.extend([p.stop() for p in self._tcp_proxies.values()])
+        await asyncio.gather(*proxy_tasks)
 
         for cluster in self.clusters.values():
             cluster.stop()

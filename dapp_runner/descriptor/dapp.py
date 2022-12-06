@@ -43,8 +43,8 @@ class PortMapping:
 
 
 @dataclass
-class HttpProxyDescriptor(BaseDescriptor["HttpProxyDescriptor"]):
-    """HTTP Proxy descriptor."""
+class ProxyDescriptor(BaseDescriptor["ProxyDescriptor"]):
+    """Proxy descriptor."""
 
     def __ports_factory(value: str) -> PortMapping:  # type: ignore [misc]  # noqa
         ports = [int(p) for p in value.split(":")]
@@ -54,6 +54,16 @@ class HttpProxyDescriptor(BaseDescriptor["HttpProxyDescriptor"]):
         return port_mappping
 
     ports: List[PortMapping] = field(metadata={"factory": __ports_factory})
+
+
+@dataclass
+class HttpProxyDescriptor(ProxyDescriptor):
+    """HTTP proxy descriptor."""
+
+
+@dataclass
+class SocketProxyDescriptor(ProxyDescriptor):
+    """TCP socket proxy descriptor."""
 
 
 @dataclass
@@ -112,6 +122,7 @@ class ServiceDescriptor(BaseDescriptor["ServiceDescriptor"]):
     network: Optional[str] = None
     ip: List[str] = field(default_factory=list)
     http_proxy: Optional[HttpProxyDescriptor] = None
+    tcp_proxy: Optional[SocketProxyDescriptor] = None
     depends_on: List[str] = field(default_factory=list)
 
     def __validate_entrypoint(self):
@@ -194,10 +205,10 @@ class DappDescriptor(BaseDescriptor["DappDescriptor"]):
             self.networks[NETWORK_DEFAULT_NAME] = NetworkDescriptor()
         return list(self.networks.keys())[0]
 
-    def __implicit_http_proxy_init(self):
-        """Implicitly add a default network to all http proxy nodes."""
+    def __implicit_proxy_init(self):
+        """Implicitly add a default network to all http/tcp proxy nodes."""
         for node in self.nodes.values():
-            if node.http_proxy and not node.network:
+            if node.http_proxy or node.tcp_proxy and not node.network:
                 node.network = self.__default_network()
 
     def __implicit_vpn(self):
@@ -261,7 +272,7 @@ class DappDescriptor(BaseDescriptor["DappDescriptor"]):
 
     def __post_init__(self):
         self.__validate_nodes()
-        self.__implicit_http_proxy_init()
+        self.__implicit_proxy_init()
         self.__implicit_vpn()
         self.__implicit_manifest_support()
         self._resolve_dependencies()
