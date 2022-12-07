@@ -14,7 +14,7 @@ from yapapi.payload import Payload
 from yapapi.services import Cluster, Service, ServiceState
 
 from dapp_runner.descriptor import Config, DappDescriptor
-from dapp_runner.descriptor.dapp import PortMapping, ServiceDescriptor
+from dapp_runner.descriptor.dapp import CommandDescriptor, PortMapping, ServiceDescriptor
 from dapp_runner._util import get_free_port, utcnow
 
 from .payload import get_payload
@@ -70,6 +70,7 @@ class Runner:
         self._tasks = []
         self.data_queue = asyncio.Queue()
         self.state_queue = asyncio.Queue()
+        self.command_queue = asyncio.Queue()
         self._startup_finished = False
 
     async def _create_networks(self):
@@ -179,6 +180,9 @@ class Runner:
         # while the dapp is starting
         self._tasks.append(asyncio.create_task(self._start_services()))
 
+        # launch the incoming command processor
+        self._tasks.append(asyncio.create_task(self._listen_incoming_command_queue()))
+
     async def start_cluster(self, cluster_name, cluster_class, run_params):
         """Start a single cluster for this dapp."""
         cluster = await self.golem.run_service(cluster_class, **run_params)
@@ -270,6 +274,42 @@ class Runner:
                 }
             )
         return commands_list
+
+    async def _listen_incoming_command_queue(self):
+        """Pass data messages from the instance to the Runner's queue."""
+        while True:
+            try:
+                msg: Dict = await self.command_queue.get()
+            except asyncio.CancelledError:
+                return
+
+            for cluster_name, cluster_cmd_dict in msg.items():
+                cluster = self.clusters.get(cluster_name)
+                if not cluster:
+                    logger.error("Command sent to an unknown service: %s", cluster_name)
+                    continue
+
+                if len(cluster_cmd_dict.keys()) != 1:
+                    logger.error(
+                        "Unknown command message format, "
+                        "expecting a single entry: "
+                        "`{instance_idx: {<command definition>}`, got %s.",
+                        cluster_cmd_dict
+                    )
+                    continue
+
+                idx, cmd_def = list(cluster_cmd_dict.items())[0]
+                try:
+                    service: DappService = cluster.instances[int(idx)]
+                except IndexError:
+                    logger.error(
+                        "Command for a nonexistent instance (`%s` not in `%s`)", idx, cluster_name
+                    )
+                    continue
+
+                logger.debug("Creating runtime command: %s", cmd_def)
+                cmd = CommandDescriptor.load(cmd_def)
+                service.command_queue.put_nowait(cmd)
 
     def _is_cluster_state(self, cluster_id: str, state: ServiceState) -> bool:
         """Return True if the state of all instances in the cluster is `state`."""

@@ -14,6 +14,7 @@ from dapp_runner._util import _print_env_info, utcnow
 
 from .runner import Runner
 from .error import RunnerError
+from .infile import feed_from_file
 from .streams import RunnerStreamer
 
 DEFAULT_STARTUP_TIMEOUT = 240  # seconds
@@ -35,6 +36,7 @@ async def _run_app(
     dapp_dict: dict,
     data_f: TextIO,
     state_f: TextIO,
+    commands_f: Optional[TextIO],
     silent=False,
 ):
     """Run the dapp using the Runner."""
@@ -50,6 +52,11 @@ async def _run_app(
     streamer = RunnerStreamer()
     streamer.register_stream(r.state_queue, state_f, lambda msg: json.dumps(msg))
     streamer.register_stream(r.data_queue, data_f, lambda msg: json.dumps(msg))
+    streamer._tasks.append(
+        asyncio.create_task(
+            feed_from_file(r.command_queue, commands_f, lambda msg: json.loads(msg))
+        )
+    )
 
     if not silent:
         streamer.register_stream(
@@ -111,6 +118,7 @@ def start_runner(
     dapp_dict: dict,
     data: Path,
     state: Path,
+    commands: Optional[Path] = None,
     stdout: Optional[Path] = None,
     stderr: Optional[Path] = None,
     silent=False,
@@ -131,9 +139,11 @@ def start_runner(
                 redirect_stderr(stack.enter_context(open(str(stderr), "w", 1)))
             )
 
+        commands_f = stack.enter_context(open(str(commands), "w+", 1)) if commands else None
+
         loop = asyncio.get_event_loop()
         task = loop.create_task(
-            _run_app(config_dict, dapp_dict, data_f, state_f, silent)
+            _run_app(config_dict, dapp_dict, data_f, state_f, commands_f, silent)
         )
 
         try:
