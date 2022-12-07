@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dapp-runner"
-version = "0.0.0a2"
+version = "0.0.0a3"
 description = "Golem dapp-runner - a high-level interface for running decentralized applications using the Golem Network."
 authors = ["Golem Factory <contact@golem.network>"]
 license = "LGPL-3.0"
@@ -24,9 +24,9 @@ click = "^8.1"
 dpath = "^2.0"
 pyyaml = "^6.0"
 shortuuid = "^1.0"
-yapapi = { version = "==0.10.0", source = "testpypi" }
 ansicolors = "^1.1.8"
 networkx = "^2.8"
+yapapi = "^0.10.0"
 
 [tool.poetry.dev-dependencies]
 black = "^22.1"
