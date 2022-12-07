@@ -2,7 +2,7 @@ yagna:
 #  api_url: "http://localhost:7465"
 #  gsb_url: "http://localhost:9999"
   app_key: "$YAGNA_APPKEY"
-  subnet_tag: "devnet-beta"
+  subnet_tag: "public"
 
 
 payment:
@@ -12,4 +12,4 @@ payment:
 
 #limits:
 #  startup_timeout: 300  # timeout for the provisioning of the app (seconds)
-#  max_running_time: 10  # the maximum running time for the app (seconds)
+#  max_running_time: 1200  # the maximum running time for the app (seconds)
