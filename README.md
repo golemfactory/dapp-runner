@@ -150,7 +150,7 @@ payloads:
 nodes:
   http:
     payload: "nginx"
-    entrypoint:
+    init:
         - ["/docker-entrypoint.sh"]
         - ["/bin/chmod", "a+x", "/"]
         - ["/bin/sh", "-c", 'echo "Hello from inside Golem!" > /usr/share/nginx/html/index.html']
@@ -179,14 +179,14 @@ payloads:
 nodes:
   db:
     payload: "db"
-    entrypoint:
+    init:
       - ["/bin/run_rqlite.sh"]
     network: "default"
     ip:
       - "192.168.0.2"
   http:
     payload: "http"
-    entrypoint:
+    init:
       - ["/bin/bash", "-c", "cd /webapp && python app.py --db-address 192.168.0.2 --db-port 4001 initdb"]
       - ["/bin/bash", "-c", "cd /webapp && python app.py --db-address 192.168.0.2 --db-port 4001 run > /webapp/out 2> /webapp/err &"]
     http_proxy:

@@ -3,7 +3,6 @@ import logging
 from dataclasses import dataclass, field, fields
 import networkx
 from typing import Dict, List, Any, Optional, Final, Tuple
-import warnings
 
 from .base import BaseDescriptor, DescriptorError
 
@@ -118,36 +117,11 @@ class ServiceDescriptor(BaseDescriptor["ServiceDescriptor"]):
     init: List[CommandDescriptor] = field(
         metadata={"load": _CommandDescriptorList.load_commands}, default_factory=list
     )
-    entrypoint: List[List[str]] = field(default_factory=list)
     network: Optional[str] = None
     ip: List[str] = field(default_factory=list)
     http_proxy: Optional[HttpProxyDescriptor] = None
     tcp_proxy: Optional[SocketProxyDescriptor] = None
     depends_on: List[str] = field(default_factory=list)
-
-    def __validate_entrypoint(self):
-        if self.entrypoint:
-            warnings.warn(
-                f"`{type(self).__name__}.entrypoint` is deprecated. "
-                f"Please use `init` instead.",
-                DeprecationWarning,
-            )
-            if self.init:
-                raise DescriptorError(
-                    "Cannot specify both `init` and `entrypoint`. "
-                    "Please use `init` only."
-                )
-            if isinstance(self.entrypoint[0], str):
-                self.entrypoint = [self.entrypoint]  # noqa
-            for c in self.entrypoint:
-                self.init.append(
-                    CommandDescriptor(cmd=EXEUNIT_CMD_RUN, params={"args": c})
-                )
-        # ensure it's not used anymore
-        self.entrypoint = []
-
-    def __post_init__(self):
-        self.__validate_entrypoint()
 
 
 @dataclass
