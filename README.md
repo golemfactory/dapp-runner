@@ -16,6 +16,7 @@ of the multi-service application deployment framework described in
 [GAP-16](https://github.com/golemfactory/golem-architecture/pull/39).
 
 Following features of the framework are currently supported:
+
 * Descriptor "Apply" operation
 * Single-YAML package support
 * Merging descriptor files
@@ -62,7 +63,6 @@ and if you don't know what your app-key is, you can always query `yagna` with:
 yagna app-key list
 ```
 
-
 ### Python environment
 
 First, ensure you have Python 3.8 or later:
@@ -92,7 +92,7 @@ python -m venv --clear %HOMEDRIVE%%HOMEPATH%\.envs\dapp-runner
 
 ### DApp runner
 
-#### Clone the repository:
+#### Clone the repository
 
 ```bash
 git clone --recurse-submodules https://github.com/golemfactory/dapp-runner.git
@@ -100,13 +100,13 @@ git clone --recurse-submodules https://github.com/golemfactory/dapp-runner.git
 
 #### Install the dependencies
 
-```
+```bash
 cd dapp-runner
 pip install -U pip poetry
 poetry install
 ```
 
-#### Run an example application:
+#### Run an example application
 
 Make sure your `yagna` daemon is running,
 you have initialized the payment driver with `yagna payment init --sender`,
@@ -121,7 +121,7 @@ dapp-runner start --config configs/default.yaml dapp-store/apps/webapp.yaml
 You should see the application being deployed on the Golem Network and once it's up,
 you'll be greeted with:
 
-```
+```shell
 {"http": {"local_proxy_address": "http://localhost:8080"}}
 ```
 
@@ -150,7 +150,7 @@ payloads:
 nodes:
   http:
     payload: "nginx"
-    entrypoint:
+    init:
         - ["/docker-entrypoint.sh"]
         - ["/bin/chmod", "a+x", "/"]
         - ["/bin/sh", "-c", 'echo "Hello from inside Golem!" > /usr/share/nginx/html/index.html']
@@ -179,14 +179,14 @@ payloads:
 nodes:
   db:
     payload: "db"
-    entrypoint:
+    init:
       - ["/bin/run_rqlite.sh"]
     network: "default"
     ip:
       - "192.168.0.2"
   http:
     payload: "http"
-    entrypoint:
+    init:
       - ["/bin/bash", "-c", "cd /webapp && python app.py --db-address 192.168.0.2 --db-port 4001 initdb"]
       - ["/bin/bash", "-c", "cd /webapp && python app.py --db-address 192.168.0.2 --db-port 4001 run > /webapp/out 2> /webapp/err &"]
     http_proxy:
@@ -228,13 +228,13 @@ the requested `capabilities` for the runtime.
 
 Currently, the `dapp-runner` implements a single CLI command, `start`:
 
-```
+```shell
 Usage: dapp-runner start [OPTIONS] DESCRIPTORS...
 ```
 
 which allows the following options:
 
-```
+```shell
   -d, --data PATH    Path to the data file.
   -l, --log PATH     Path to the log file.
   -s, --state PATH   Path to the state file.

@@ -97,3 +97,6 @@ dmypy.json
 
 # pycharm
 .idea
+
+# liccheck
+.requirements.txt
