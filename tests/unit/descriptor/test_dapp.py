@@ -29,7 +29,7 @@ from dapp_runner.descriptor.dapp import (
                 "nodes": {
                     "simple-service": {
                         "payload": "simple-service",
-                        "entrypoint": [
+                        "init": [
                             ["/golem/run/simulate_observations_ctl.py", "--start"],
                         ],
                     }
@@ -48,7 +48,7 @@ from dapp_runner.descriptor.dapp import (
                 "nodes": {
                     "simple-service": {
                         "payload": "simple-service",
-                        "entrypoint": [
+                        "init": [
                             ["/golem/run/simulate_observations_ctl.py", "--start"],
                         ],
                     }
@@ -72,7 +72,7 @@ from dapp_runner.descriptor.dapp import (
                 "nodes": {
                     "simple-service": {
                         "payload": "simple-service",
-                        "entrypoint": [
+                        "init": [
                             "/golem/run/simulate_observations_ctl.py",
                             "--start",
                         ],
@@ -92,7 +92,7 @@ from dapp_runner.descriptor.dapp import (
                 "nodes": {
                     "simple-service": {
                         "payload": "other",
-                        "entrypoint": [
+                        "init": [
                             ["/golem/run/simulate_observations_ctl.py", "--start"],
                         ],
                     }
@@ -105,7 +105,7 @@ from dapp_runner.descriptor.dapp import (
                 "nodes": {
                     "simple-service": {
                         "payload": "simple-service",
-                        "entrypoint": [
+                        "init": [
                             ["/golem/run/simulate_observations_ctl.py", "--start"],
                         ],
                     }
@@ -124,7 +124,7 @@ from dapp_runner.descriptor.dapp import (
                 "nodes": {
                     "simple-service": {
                         "payload": "simple-service",
-                        "entrypoint": [
+                        "init": [
                             ["/golem/run/simulate_observations_ctl.py", "--start"],
                         ],
                         "network": "missing",
@@ -452,40 +452,6 @@ def test_manifest_payload(descriptor_dict, implicit_manifest):
             [CommandDescriptor("run", {"args": ["test", "blah"]})],
             None,
         ),
-        # ensure previous, simplified `entrypoint` syntax is correctly converted
-        (
-            {
-                "payload": "foo",
-                "entrypoint": ["test", "blah"],
-            },
-            [CommandDescriptor("run", params={"args": ["test", "blah"]})],
-            None,
-        ),
-        # ensure previous, regular `entrypoint` syntax is correctly converted
-        (
-            {
-                "payload": "foo",
-                "entrypoint": [["test", "blah"], ["other command"]],
-            },
-            [
-                CommandDescriptor("run", {"args": ["test", "blah"]}),
-                CommandDescriptor("run", {"args": ["other command"]}),
-            ],
-            None,
-        ),
-        # ensure that one cannot provide both `init` and `entrypoint`
-        (
-            {
-                "payload": "foo",
-                "init": ["test"],
-                "entrypoint": ["test"],
-            },
-            None,
-            DescriptorError(
-                "Cannot specify both `init` and `entrypoint`. "
-                "Please use `init` only."
-            ),
-        ),
         # check the empty init default
         (
             {
@@ -549,13 +515,11 @@ def test_manifest_payload(descriptor_dict, implicit_manifest):
     ],
 )
 def test_service_init(test_utils, descriptor_dict, expected_init, error):
-    """Test the ServiceDescriptor's init/entrypoint field."""
+    """Test the ServiceDescriptor's init field."""
     try:
         service = ServiceDescriptor.load(descriptor_dict)
         assert isinstance(service, ServiceDescriptor)
         assert service.init == expected_init
-        # the `entrypoint` should always stay empty from now on
-        assert service.entrypoint == []
 
     except Exception as e:  # noqa
         test_utils.verify_error(error, e)
@@ -572,16 +536,16 @@ def test_service_init(test_utils, descriptor_dict, expected_init, error):
                 "nodes": {
                     "db1": {
                         "payload": "foo",
-                        "entrypoint": [],
+                        "init": [],
                     },
                     "http": {
                         "payload": "foo",
-                        "entrypoint": [],
+                        "init": [],
                         "depends_on": ["db1", "db2"],
                     },
                     "db2": {
                         "payload": "foo",
-                        "entrypoint": [],
+                        "init": [],
                     },
                 },
             },
@@ -594,16 +558,16 @@ def test_service_init(test_utils, descriptor_dict, expected_init, error):
                 "nodes": {
                     "one": {
                         "payload": "foo",
-                        "entrypoint": [],
+                        "init": [],
                     },
                     "three": {
                         "payload": "foo",
-                        "entrypoint": [],
+                        "init": [],
                         "depends_on": ["two"],
                     },
                     "two": {
                         "payload": "foo",
-                        "entrypoint": [],
+                        "init": [],
                         "depends_on": ["one"],
                     },
                 },
@@ -615,7 +579,7 @@ def test_service_init(test_utils, descriptor_dict, expected_init, error):
             {
                 "payloads": {"foo": {"runtime": "vm"}},
                 "nodes": {
-                    "http": {"payload": "foo", "entrypoint": [], "depends_on": ["bar"]}
+                    "http": {"payload": "foo", "init": [], "depends_on": ["bar"]}
                 },
             },
             DescriptorError('Unmet `depends_on`: "bar" in service: "http"'),
@@ -625,8 +589,8 @@ def test_service_init(test_utils, descriptor_dict, expected_init, error):
             {
                 "payloads": {"foo": {"runtime": "vm"}},
                 "nodes": {
-                    "http": {"payload": "foo", "entrypoint": [], "depends_on": ["db"]},
-                    "db": {"payload": "foo", "entrypoint": [], "depends_on": ["http"]},
+                    "http": {"payload": "foo", "init": [], "depends_on": ["db"]},
+                    "db": {"payload": "foo", "init": [], "depends_on": ["http"]},
                 },
             },
             DescriptorError("Service definition contains a circular `depends_on`."),
