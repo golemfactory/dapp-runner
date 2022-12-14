@@ -1,3 +1,4 @@
+"""Runner's input streams."""
 import asyncio
 import logging
 from typing import TextIO, Callable, Optional
@@ -12,6 +13,8 @@ async def feed_from_file(
     f: TextIO,
     process_callback: Optional[Callable] = None,
 ):
+    """Feed and ascyncio queue from a `TextIO` buffer (e.g. file)."""
+
     while True:
         try:
             msg = f.readline()
@@ -21,7 +24,9 @@ async def feed_from_file(
                         msg = process_callback(msg)
                     await q.put(msg)
                 except Exception as e:
-                    logger.error("Exception while processing a message: %s, msg: %s", e, msg)
+                    logger.error(
+                        "Exception while processing a message: %s, msg: %s", e, msg
+                    )
             else:
                 await asyncio.sleep(FILE_READ_INTERVAL)
         except asyncio.CancelledError:

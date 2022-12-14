@@ -73,7 +73,7 @@ class DappService(Service):
             yield script
 
         if self.init:
-            script = self._ctx.new_script()  # type: ignore  # noqa - it's asserted in super().start()
+            script = self._ctx.new_script()  # type: ignore [union-attr] # noqa - it's asserted in super().start()
             for c in self.init:
                 self._add_command(script, c)
             init_output = yield script
@@ -81,12 +81,12 @@ class DappService(Service):
             self.data_queue.put_nowait(await init_output)
 
     async def run(self):
-        """Report a state change after switching to `running` and await possible commands."""
+        """Report a state change after switching to `running` and await commands."""
         self._report_state_change()
 
         while True:
             c = await self.command_queue.get()
-            script = self._ctx.new_script()
+            script = self._ctx.new_script()  # type: ignore [union-attr] # noqa - it's asserted in super().start()
             self._add_command(script, c)
             out = yield script
 

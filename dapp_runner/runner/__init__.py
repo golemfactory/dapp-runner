@@ -52,11 +52,10 @@ async def _run_app(
     streamer = RunnerStreamer()
     streamer.register_stream(r.state_queue, state_f, lambda msg: json.dumps(msg))
     streamer.register_stream(r.data_queue, data_f, lambda msg: json.dumps(msg))
-    streamer._tasks.append(
-        asyncio.create_task(
+    if commands_f:
+        streamer.add_task(
             feed_from_file(r.command_queue, commands_f, lambda msg: json.loads(msg))
         )
-    )
 
     if not silent:
         streamer.register_stream(
@@ -139,7 +138,9 @@ def start_runner(
                 redirect_stderr(stack.enter_context(open(str(stderr), "w", 1)))
             )
 
-        commands_f = stack.enter_context(open(str(commands), "w+", 1)) if commands else None
+        commands_f = (
+            stack.enter_context(open(str(commands), "w+", 1)) if commands else None
+        )
 
         loop = asyncio.get_event_loop()
         task = loop.create_task(

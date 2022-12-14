@@ -59,8 +59,8 @@ def _get_run_dir(run_id: str) -> Path:
 @click.option(
     "--commands",
     type=Path,
-    help="Path to the file used to supply ingress commands executed in the running state. "
-         "Any contents of the file will be truncated on startup.",
+    help="Path to the file used to supply ingress commands executed in the running "
+    "state. Any contents of the file will be truncated on startup.",
 )
 @click.option(
     "--stdout",

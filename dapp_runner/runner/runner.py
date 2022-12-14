@@ -14,7 +14,11 @@ from yapapi.payload import Payload
 from yapapi.services import Cluster, Service, ServiceState
 
 from dapp_runner.descriptor import Config, DappDescriptor
-from dapp_runner.descriptor.dapp import CommandDescriptor, PortMapping, ServiceDescriptor
+from dapp_runner.descriptor.dapp import (
+    CommandDescriptor,
+    PortMapping,
+    ServiceDescriptor,
+)
 from dapp_runner._util import get_free_port, utcnow
 
 from .payload import get_payload
@@ -49,6 +53,7 @@ class Runner:
 
     data_queue: asyncio.Queue
     state_queue: asyncio.Queue
+    command_queue: asyncio.Queue
 
     def __init__(self, config: Config, dapp: DappDescriptor):
         self.config = config
@@ -294,7 +299,7 @@ class Runner:
                         "Unknown command message format, "
                         "expecting a single entry: "
                         "`{instance_idx: {<command definition>}`, got %s.",
-                        cluster_cmd_dict
+                        cluster_cmd_dict,
                     )
                     continue
 
@@ -303,7 +308,9 @@ class Runner:
                     service: DappService = cluster.instances[int(idx)]
                 except IndexError:
                     logger.error(
-                        "Command for a nonexistent instance (`%s` not in `%s`)", idx, cluster_name
+                        "Command for a nonexistent instance (`%s` not in `%s`)",
+                        idx,
+                        cluster_name,
                     )
                     continue
 
