@@ -27,7 +27,7 @@ class DappService(Service):
 
     data_queue: asyncio.Queue
     state_queue: asyncio.Queue
-    command_queue: asyncio.Queue[CommandDescriptor]
+    command_queue: "asyncio.Queue[CommandDescriptor]"
 
     def __init__(self, init: List[CommandDescriptor], **kwargs):
         super().__init__(**kwargs)
