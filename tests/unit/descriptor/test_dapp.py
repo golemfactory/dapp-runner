@@ -494,11 +494,8 @@ def test_manifest_payload(descriptor_dict, implicit_manifest):
                     }
                 ],
             },
-            [
-                CommandDescriptor("run", {"args": ["test", "command"]}),
-                CommandDescriptor("test", {"param": ["another", "foo"]}),
-            ],
             None,
+            DescriptorError("Cannot parse the command descriptor"),
         ),
         # check the regular syntax
         (

@@ -42,9 +42,7 @@ class BaseDescriptor(Generic[DescriptorType]):
         cls, f: Field, field_type, descriptor_value: Dict[str, Any]
     ) -> Dict[str, Any]:
         try:
-            entry_type = getattr(field_type, "__args__", None)[
-                1
-            ]  # type: ignore [index] # noqa
+            entry_type = getattr(field_type, "__args__", None)[1]  # type: ignore [index] # noqa
         except (TypeError, IndexError):
             entry_type = None
 
@@ -59,9 +57,7 @@ class BaseDescriptor(Generic[DescriptorType]):
     @classmethod
     def _load_list(cls, f: Field, field_type, descriptor_value: List[Any]) -> List[Any]:
         try:
-            entry_type = getattr(field_type, "__args__", None)[
-                0
-            ]  # type: ignore [index] # noqa
+            entry_type = getattr(field_type, "__args__", None)[0]  # type: ignore [index] # noqa
         except (TypeError, IndexError):
             entry_type = None
 

@@ -6,6 +6,7 @@ from typing import Dict, List, Tuple, Type, Optional
 from yapapi.contrib.service.http_proxy import HttpProxyService
 from yapapi.network import Network
 from yapapi.payload import Payload
+from yapapi.script import Script
 from yapapi.services import Service, ServiceState
 
 from dapp_runner.descriptor.dapp import (
@@ -26,6 +27,7 @@ class DappService(Service):
 
     data_queue: asyncio.Queue
     state_queue: asyncio.Queue
+    command_queue: "asyncio.Queue[CommandDescriptor]"
 
     def __init__(self, init: List[CommandDescriptor], **kwargs):
         super().__init__(**kwargs)
@@ -36,6 +38,9 @@ class DappService(Service):
         self.data_queue = asyncio.Queue()
         self.state_queue = asyncio.Queue()
 
+        # initialize the input queue
+        self.command_queue = asyncio.Queue()
+
         self._report_state_change()
 
     def _report_state_change(self):
@@ -43,6 +48,15 @@ class DappService(Service):
         if self._previous_state != state:
             self.state_queue.put_nowait(self.state)
             self._previous_state = state
+
+    @staticmethod
+    def _add_command(script: Script, command: CommandDescriptor):
+        if command.cmd == EXEUNIT_CMD_RUN:
+            params = dict(command.params)
+            args = params.pop("args")
+            script.run(*args, **params)
+        else:
+            raise RunnerError(f"Unsupported command: `{command.cmd}`.")
 
     async def start(self):
         """Start the service on a given provider."""
@@ -59,24 +73,24 @@ class DappService(Service):
             yield script
 
         if self.init:
-            script = self._ctx.new_script()  # type: ignore  # noqa - it's asserted in super().start()
+            script = self._ctx.new_script()  # type: ignore [union-attr] # noqa - it's asserted in super().start()
             for c in self.init:
-                if c.cmd == EXEUNIT_CMD_RUN:
-                    params = dict(c.params)
-                    args = params.pop("args")
-                    script.run(*args, **params)
-                else:
-                    raise RunnerError(f"Unsupported command: `{c.cmd}`.")
+                self._add_command(script, c)
             init_output = yield script
 
             self.data_queue.put_nowait(await init_output)
 
     async def run(self):
-        """Report a state change after switching to `running`."""
+        """Report a state change after switching to `running` and await commands."""
         self._report_state_change()
 
-        async for script in super().run():
-            yield script
+        while True:
+            c = await self.command_queue.get()
+            script = self._ctx.new_script()  # type: ignore [union-attr] # noqa - it's asserted in super().start()
+            self._add_command(script, c)
+            out = yield script
+
+            self.data_queue.put_nowait(await out)
 
     async def shutdown(self):
         """Report a state change after switching to `stopping`."""

@@ -57,6 +57,12 @@ def _get_run_dir(run_id: str) -> Path:
     help="Path to the state file.",
 )
 @click.option(
+    "--commands",
+    type=Path,
+    help="Path to the file used to supply ingress commands executed in the running "
+    "state. Any contents of the file will be truncated on startup.",
+)
+@click.option(
     "--stdout",
     type=Path,
     help="Redirect stdout to the specified file.",
@@ -111,7 +117,7 @@ def start(
     app_dir = _get_run_dir(run_id)
 
     # Provide default values for data, log and state parameters
-    for param_name in ["data", "log", "state"]:
+    for param_name in ["data", "log", "state", "commands"]:
         param_value = kwargs[param_name]
         if not param_value:
             kwargs[param_name] = app_dir / param_name

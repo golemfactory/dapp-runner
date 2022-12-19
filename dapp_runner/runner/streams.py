@@ -3,7 +3,17 @@ import asyncio
 from collections import defaultdict
 from dataclasses import dataclass
 
-from typing import Callable, Dict, List, Optional, TextIO, Any, TypeVar, Generic
+from typing import (
+    Callable,
+    Coroutine,
+    Dict,
+    List,
+    Optional,
+    TextIO,
+    Any,
+    TypeVar,
+    Generic,
+)
 
 Msg = TypeVar("Msg")
 
@@ -41,6 +51,10 @@ class RunnerStreamer:
         self._streams = defaultdict(list)
         self._tasks = []
 
+    def add_task(self, task: Coroutine):
+        """Add an asyncio task to the streamer's task list."""
+        self._tasks.append(asyncio.create_task(task))
+
     def register_stream(
         self,
         runner_queue: asyncio.Queue,
@@ -56,7 +70,7 @@ class RunnerStreamer:
             asyncio.Queue(), stream, process_callback
         )
         self._streams[runner_queue].append(runner_stream)
-        self._tasks.append(asyncio.create_task(runner_stream.update()))
+        self.add_task(runner_stream.update())
 
     async def _feed_queue(self, queue: asyncio.Queue):
         while True:

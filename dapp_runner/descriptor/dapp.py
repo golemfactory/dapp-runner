@@ -72,24 +72,31 @@ class CommandDescriptor:
     cmd: str = EXEUNIT_CMD_RUN
     params: Dict[str, Any] = field(default_factory=dict)
 
-
-class _CommandDescriptorList:
-    """Preprocessor for the exescript commands."""
-
-    def _process_command(self, c):
+    @classmethod
+    def load(cls, c):
+        """Load a command descriptor from its serialized representation."""
         if isinstance(c, list):
             # assuming it's a `run`
-            self.commands.append(CommandDescriptor(params={"args": c}))
-        elif isinstance(c, dict):
+            return cls(params={"args": c})
+        elif isinstance(c, dict) and len(c.keys()) == 1:
+            # we don't want to support malformed entries
+            # where multiple commands are present in a single dictionary
             for cmd, params in c.items():
                 if cmd == EXEUNIT_CMD_RUN and isinstance(params, list):
                     # support shorthand `run` notation:
                     # - run:
                     #    - ["/golem/run/simulate_observations_ctl.py", "--start"]
                     params = {"args": params}
-                self.commands.append(CommandDescriptor(cmd=cmd, params=params))
+                return CommandDescriptor(cmd=cmd, params=params)
         else:
             raise DescriptorError(f"Cannot parse the command descriptor `{c}`.")
+
+
+class _CommandDescriptorList:
+    """Preprocessor for the exescript commands."""
+
+    def _process_command(self, c):
+        self.commands.append(CommandDescriptor.load(c))
 
     def __init__(self):
         self.commands = list()
