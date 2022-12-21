@@ -1,7 +1,7 @@
 """Main Dapp Runner module."""
 import asyncio
 from dataclasses import asdict
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from typing import Optional, Dict, List, Final
 
@@ -204,10 +204,10 @@ class Runner:
 
         return {
             cluster_id: {
-                idx: self.clusters[cluster_id].instances[idx].state.name
-                for idx in range(len(self.clusters[cluster_id].instances))
+                instance_number: instance.state.name
+                for instance_number, instance in enumerate(cluster.instances)
             }
-            for cluster_id in self.clusters.keys()
+            for cluster_id, cluster in self.clusters.items()
         }
 
     @property
@@ -248,8 +248,32 @@ class Runner:
             except asyncio.CancelledError:
                 return
 
+            nodes_states = self.dapp_state
+
             # on a state change, we're publishing the state of the whole dapp
-            self.state_queue.put_nowait(self.dapp_state)
+            self.state_queue.put_nowait({
+                'nodes': nodes_states,
+                'app': self._get_app_state_from_nodes(nodes_states),
+                'timestamp': datetime.now(timezone.utc).isoformat()[:-6] + 'Z'
+            })
+
+    def _get_app_state_from_nodes(self, nodes_states: Dict) -> str:
+        """Return general application state based on all instances states"""
+
+        # Collect nested node states into simple unique collection of state values
+        all_states = set(state for node in nodes_states.values() for state in node.values())
+
+        # Mark app state with the lowest nodes state found below "running"
+        for state in [ServiceState.pending, ServiceState.starting, ServiceState.stopping]:
+            if state.name in all_states:
+                return state.name
+
+        # Mark app state as terminated if all nodes states are terminated
+        if {ServiceState.terminated.name} == all_states:
+            return ServiceState.terminated.name
+
+        # Mark app state as running, as we filtered out any other states
+        return ServiceState.running.name
 
     async def _listen_data_queue(
         self, cluster_name: str, idx: int, service: DappService
