@@ -258,29 +258,27 @@ class Runner:
             nodes_states = self.dapp_state
 
             # on a state change, we're publishing the state of the whole dapp
-            self.state_queue.put_nowait({
-                'nodes': nodes_states,
-                'app': self._get_app_state_from_nodes(nodes_states),
-                'timestamp': utcnow_iso_str(),
-            })
+            self.state_queue.put_nowait(
+                {
+                    "nodes": nodes_states,
+                    "app": self._get_app_state_from_nodes(nodes_states),
+                    "timestamp": utcnow_iso_str(),
+                }
+            )
 
     def _get_app_state_from_nodes(self, nodes_states: Dict) -> str:
         """Return general application state based on all instances states."""
 
         # Collect nested node states into simple unique collection of state values
         all_states: Set[str] = set(
-            state
-            for node in nodes_states.values()
-            for state in node.values()
+            state for node in nodes_states.values() for state in node.values()
         )
 
         # If we want dapp to be running handle other states as starting
         if self._desired_app_state == ServiceState.running:
             # Check node-to-state parity because of node dependency,
             #  states gradually rolls out
-            if (
-                {self._desired_app_state.name} == all_states
-                and
+            if ({self._desired_app_state.name} == all_states) and (
                 len(nodes_states) == len(self.dapp.nodes)
             ):
                 return ServiceState.running.name
