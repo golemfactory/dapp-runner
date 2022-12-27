@@ -1,9 +1,9 @@
 """Main Dapp Runner module."""
 import asyncio
 from dataclasses import asdict
-from datetime import datetime, timezone
+from datetime import datetime
 import logging
-from typing import Optional, Dict, List, Final
+from typing import Optional, Dict, List, Final, Set
 
 from yapapi import Golem
 from yapapi.contrib.service.http_proxy import LocalHttpProxy
@@ -19,7 +19,7 @@ from dapp_runner.descriptor.dapp import (
     PortMapping,
     ServiceDescriptor,
 )
-from dapp_runner._util import get_free_port, utcnow
+from dapp_runner._util import get_free_port, utcnow, utcnow_iso_str
 
 from .payload import get_payload
 from .service import get_service, DappService
@@ -50,6 +50,7 @@ class Runner:
     _networks: Dict[str, Network]
     _tasks: List[asyncio.Task]
     _startup_finished: bool
+    _desired_app_state: ServiceState
 
     data_queue: asyncio.Queue
     state_queue: asyncio.Queue
@@ -77,6 +78,7 @@ class Runner:
         self.state_queue = asyncio.Queue()
         self.command_queue = asyncio.Queue()
         self._startup_finished = False
+        self._desired_app_state = ServiceState.pending
 
     async def _create_networks(self):
         for name, desc in self.dapp.networks.items():
@@ -174,7 +176,12 @@ class Runner:
 
     async def start(self):
         """Start the Golem engine and the dapp."""
+
         self.commissioning_time = utcnow()
+
+        # explicitly mark that we want dapp in running state
+        self._desired_app_state = ServiceState.running
+
         await self.golem.start()
 
         await self._create_networks()
@@ -204,8 +211,8 @@ class Runner:
 
         return {
             cluster_id: {
-                instance_number: instance.state.name
-                for instance_number, instance in enumerate(cluster.instances)
+                instance_index: instance.state.name
+                for instance_index, instance in enumerate(cluster.instances)
             }
             for cluster_id, cluster in self.clusters.items()
         }
@@ -254,26 +261,41 @@ class Runner:
             self.state_queue.put_nowait({
                 'nodes': nodes_states,
                 'app': self._get_app_state_from_nodes(nodes_states),
-                'timestamp': datetime.now(timezone.utc).isoformat()[:-6] + 'Z'
+                'timestamp': utcnow_iso_str(),
             })
 
     def _get_app_state_from_nodes(self, nodes_states: Dict) -> str:
-        """Return general application state based on all instances states"""
+        """Return general application state based on all instances states."""
 
         # Collect nested node states into simple unique collection of state values
-        all_states = set(state for node in nodes_states.values() for state in node.values())
+        all_states: Set[str] = set(
+            state
+            for node in nodes_states.values()
+            for state in node.values()
+        )
 
-        # Mark app state with the lowest nodes state found below "running"
-        for state in [ServiceState.pending, ServiceState.starting, ServiceState.stopping]:
-            if state.name in all_states:
-                return state.name
+        # If we want dapp to be running handle other states as starting
+        if self._desired_app_state == ServiceState.running:
+            # Check node-to-state parity because of node dependency,
+            #  states gradually rolls out
+            if (
+                {self._desired_app_state.name} == all_states
+                and
+                len(nodes_states) == len(self.dapp.nodes)
+            ):
+                return ServiceState.running.name
 
-        # Mark app state as terminated if all nodes states are terminated
-        if {ServiceState.terminated.name} == all_states:
-            return ServiceState.terminated.name
+            return ServiceState.starting.name
 
-        # Mark app state as running, as we filtered out any other states
-        return ServiceState.running.name
+        # If we want dapp to be terminated handle other states as stopping
+        if self._desired_app_state == ServiceState.terminated:
+            if {self._desired_app_state.name} == all_states:
+                return ServiceState.terminated.name
+            else:
+                return ServiceState.stopping.name
+
+        # In other cases return pending
+        return ServiceState.pending.name
 
     async def _listen_data_queue(
         self, cluster_name: str, idx: int, service: DappService
@@ -349,6 +371,9 @@ class Runner:
     async def stop(self):
         """Stop the dapp and the Golem engine."""
         service_tasks: List[asyncio.Task] = []
+
+        # explicitly mark that we want dapp in terminated state
+        self._desired_app_state = ServiceState.terminated
 
         proxy_tasks = [p.stop() for p in self._http_proxies.values()]
         proxy_tasks.extend([p.stop() for p in self._tcp_proxies.values()])

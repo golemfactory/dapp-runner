@@ -37,3 +37,8 @@ def _print_env_info(golem: Golem):
 def utcnow() -> datetime:
     """Get a timezone-aware datetime for _now_."""
     return datetime.now(tz=timezone.utc)
+
+
+def utcnow_iso_str() -> str:
+    """Get ISO formatted timezone-aware string for _now_."""
+    return utcnow().isoformat()
