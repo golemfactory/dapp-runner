@@ -25,7 +25,6 @@ def mock_work_context():  # noqa
     return WorkContext(Mock(), Mock(), Mock(), Mock())
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "init, expected_script",
     [
@@ -127,7 +126,6 @@ SOME_PAYLOAD: Final = Payload()
 SOME_NETWORK: Final = Network(Mock(), "192.168.0.1/24", "192.168.0.1")
 
 
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "descriptor, payloads, networks, base_class, expected_kwargs, error",
     (

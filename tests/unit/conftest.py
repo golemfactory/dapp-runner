@@ -1,4 +1,6 @@
 """Pytest configuration file containing the utilities for Dapp Runner tests."""
+import asyncio
+
 import pytest
 
 
@@ -35,3 +37,15 @@ class Utils:
 def test_utils():
     """Pytest fixture that exposes the Utils class."""
     return Utils
+
+
+@pytest.fixture(scope="session")
+def event_loop():
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+
+    yield loop
+
+    loop.close()
