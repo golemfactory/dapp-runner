@@ -215,7 +215,7 @@ class Runner:
 
         return {
             cluster_id: {
-                instance_index: instance.state
+                str(instance_index): instance.state
                 for instance_index, instance in enumerate(cluster.instances)
             }
             for cluster_id, cluster in self.clusters.items()

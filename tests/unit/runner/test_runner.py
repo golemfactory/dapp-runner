@@ -1,5 +1,7 @@
 """Tests for `dapp_runner.runner`."""
 from datetime import datetime, timezone, timedelta
+from typing import Dict
+
 import pytest
 from unittest import mock
 
@@ -97,7 +99,7 @@ async def test_runner_app_state_pending():
     """Test app state reporting at initial state of Runner."""
     dapp_node_count = 2
     desired_app_state = ServiceState.pending
-    nodes_states = {}
+    nodes_states: Dict[str, Dict[str, ServiceState]] = {}
 
     assert (
         Runner._get_app_state_from_nodes(
