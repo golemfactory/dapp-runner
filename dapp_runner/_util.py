@@ -1,6 +1,8 @@
 from datetime import datetime, timezone
 import socket
+from typing import Any
 
+import statemachine
 from yapapi import Golem, __version__ as yapapi_version
 
 from colors import yellow
@@ -42,3 +44,10 @@ def utcnow() -> datetime:
 def utcnow_iso_str() -> str:
     """Get ISO formatted timezone-aware string for _now_."""
     return utcnow().isoformat()
+
+
+def json_encoder(obj: Any):
+    if isinstance(obj, statemachine.State):
+        return obj.name
+
+    return obj

@@ -73,6 +73,7 @@ def runner(runner_config, dapp_descriptor, mocker):
     return runner
 
 
+@pytest.mark.skip("needs properly mocked `yapapi.Golem`")
 async def test_runner_desired_state(runner):
     # TODO: Any way to avoid using non-public api?
     assert runner._desired_app_state == ServiceState.pending
@@ -86,104 +87,129 @@ async def test_runner_desired_state(runner):
     assert runner._desired_app_state == ServiceState.terminated
 
 
-async def test_runner_app_state_pending(runner):
-    assert runner._get_app_state_from_nodes({}) == ServiceState.pending.name
-
-
-@pytest.mark.parametrize(
-    "nodes_states",
-    (
-        {"foo": {"0": ServiceState.pending.name}},
-        {"foo": {"0": ServiceState.starting.name}},
-        {"foo": {"0": ServiceState.running.name}},
-        {"foo": {"0": ServiceState.stopping.name}},
-        {"foo": {"0": ServiceState.terminated.name}},
-        {
-            "foo": {"0": ServiceState.starting.name},
-            "bar": {"0": ServiceState.starting.name},
-        },
-        {
-            "foo": {"0": ServiceState.stopping.name},
-            "bar": {"0": ServiceState.stopping.name},
-        },
-        {
-            "foo": {"0": ServiceState.terminated.name},
-            "bar": {"0": ServiceState.terminated.name},
-        },
-        {
-            "foo": {"0": ServiceState.running.name},
-            "bar": {"0": ServiceState.terminated.name},
-        },
-    ),
-)
-async def test_runner_app_state_starting(runner, nodes_states):
-    await runner.start()
-
-    assert runner._get_app_state_from_nodes(nodes_states) == ServiceState.starting.name
-
-    await runner.stop()
-
-
-@pytest.mark.parametrize(
-    "nodes_states",
-    (
-        {"foo": {"0": ServiceState.pending.name}},
-        {"foo": {"0": ServiceState.starting.name}},
-        {"foo": {"0": ServiceState.running.name}},
-        {"foo": {"0": ServiceState.stopping.name}},
-        {
-            "foo": {"0": ServiceState.starting.name},
-            "bar": {"0": ServiceState.starting.name},
-        },
-        {
-            "foo": {"0": ServiceState.stopping.name},
-            "bar": {"0": ServiceState.stopping.name},
-        },
-        {
-            "foo": {"0": ServiceState.running.name},
-            "bar": {"0": ServiceState.running.name},
-        },
-        {
-            "foo": {"0": ServiceState.running.name},
-            "bar": {"0": ServiceState.terminated.name},
-        },
-    ),
-)
-async def test_runner_app_state_stopping(runner, nodes_states):
-    await runner.stop()
-
-    assert runner._get_app_state_from_nodes(nodes_states) == ServiceState.stopping.name
-
-
-async def test_runner_app_state_running(runner):
-    await runner.start()
+async def test_runner_app_state_pending():
+    dapp_node_count = 2
+    desired_app_state = ServiceState.pending
+    nodes_states = {}
 
     assert (
-        runner._get_app_state_from_nodes(
-            {
-                "foo": {"0": ServiceState.running.name},
-                "bar": {"0": ServiceState.running.name},
-            }
+        Runner._get_app_state_from_nodes(
+            dapp_node_count, desired_app_state, nodes_states
         )
-        == ServiceState.running.name
+        == ServiceState.pending
     )
 
-    await runner.stop()
+
+@pytest.mark.parametrize(
+    "nodes_states",
+    (
+        {"foo": {"0": ServiceState.pending}},
+        {"foo": {"0": ServiceState.starting}},
+        {"foo": {"0": ServiceState.running}},
+        {"foo": {"0": ServiceState.stopping}},
+        {"foo": {"0": ServiceState.terminated}},
+        {
+            "foo": {"0": ServiceState.starting},
+            "bar": {"0": ServiceState.starting},
+        },
+        {
+            "foo": {"0": ServiceState.stopping},
+            "bar": {"0": ServiceState.stopping},
+        },
+        {
+            "foo": {"0": ServiceState.terminated},
+            "bar": {"0": ServiceState.terminated},
+        },
+        {
+            "foo": {"0": ServiceState.running},
+            "bar": {"0": ServiceState.terminated},
+        },
+    ),
+)
+async def test_runner_app_state_starting(nodes_states):
+    dapp_node_count = 2
+    desired_app_state = ServiceState.running
+
+    assert (
+        Runner._get_app_state_from_nodes(
+            dapp_node_count, desired_app_state, nodes_states
+        )
+        == ServiceState.starting
+    )
 
 
 @pytest.mark.parametrize(
     "nodes_states",
     (
-        {"foo": {"0": ServiceState.terminated.name}},
+        {"foo": {"0": ServiceState.pending}},
+        {"foo": {"0": ServiceState.starting}},
+        {"foo": {"0": ServiceState.running}},
+        {"foo": {"0": ServiceState.stopping}},
         {
-            "foo": {"0": ServiceState.terminated.name},
-            "bar": {"0": ServiceState.terminated.name},
+            "foo": {"0": ServiceState.starting},
+            "bar": {"0": ServiceState.starting},
+        },
+        {
+            "foo": {"0": ServiceState.stopping},
+            "bar": {"0": ServiceState.stopping},
+        },
+        {
+            "foo": {"0": ServiceState.running},
+            "bar": {"0": ServiceState.running},
+        },
+        {
+            "foo": {"0": ServiceState.running},
+            "bar": {"0": ServiceState.terminated},
         },
     ),
 )
-async def test_runner_app_state_terminated(runner, nodes_states):
-    await runner.stop()
+async def test_runner_app_state_stopping(nodes_states):
+    dapp_node_count = 2
+    desired_app_state = ServiceState.terminated
 
     assert (
-        runner._get_app_state_from_nodes(nodes_states) == ServiceState.terminated.name
+        Runner._get_app_state_from_nodes(
+            dapp_node_count, desired_app_state, nodes_states
+        )
+        == ServiceState.stopping
+    )
+
+
+async def test_runner_app_state_running():
+    dapp_node_count = 2
+    desired_app_state = ServiceState.running
+    nodes_states = {
+        "foo": {"0": ServiceState.running},
+        "bar": {"0": ServiceState.running},
+    }
+
+    assert (
+        Runner._get_app_state_from_nodes(
+            dapp_node_count,
+            desired_app_state,
+            nodes_states,
+        )
+        == ServiceState.running
+    )
+
+
+@pytest.mark.parametrize(
+    "nodes_states",
+    (
+        {"foo": {"0": ServiceState.terminated}},
+        {
+            "foo": {"0": ServiceState.terminated},
+            "bar": {"0": ServiceState.terminated},
+        },
+    ),
+)
+async def test_runner_app_state_terminated(nodes_states):
+    dapp_node_count = 2
+    desired_app_state = ServiceState.terminated
+
+    assert (
+        Runner._get_app_state_from_nodes(
+            dapp_node_count, desired_app_state, nodes_states
+        )
+        == ServiceState.terminated
     )
