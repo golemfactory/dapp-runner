@@ -99,7 +99,7 @@ async def test_runner_app_state_pending():
     """Test app state reporting at initial state of Runner."""
     dapp_node_count = 2
     desired_app_state = ServiceState.pending
-    nodes_states: Dict[str, Dict[str, ServiceState]] = {}
+    nodes_states: Dict[str, Dict[int, ServiceState]] = {}
 
     assert (
         Runner._get_app_state_from_nodes(
@@ -112,26 +112,26 @@ async def test_runner_app_state_pending():
 @pytest.mark.parametrize(
     "nodes_states",
     (
-        {"foo": {"0": ServiceState.pending}},
-        {"foo": {"0": ServiceState.starting}},
-        {"foo": {"0": ServiceState.running}},
-        {"foo": {"0": ServiceState.stopping}},
-        {"foo": {"0": ServiceState.terminated}},
+        {"foo": {0: ServiceState.pending}},
+        {"foo": {0: ServiceState.starting}},
+        {"foo": {0: ServiceState.running}},
+        {"foo": {0: ServiceState.stopping}},
+        {"foo": {0: ServiceState.terminated}},
         {
-            "foo": {"0": ServiceState.starting},
-            "bar": {"0": ServiceState.starting},
+            "foo": {0: ServiceState.starting},
+            "bar": {0: ServiceState.starting},
         },
         {
-            "foo": {"0": ServiceState.stopping},
-            "bar": {"0": ServiceState.stopping},
+            "foo": {0: ServiceState.stopping},
+            "bar": {0: ServiceState.stopping},
         },
         {
-            "foo": {"0": ServiceState.terminated},
-            "bar": {"0": ServiceState.terminated},
+            "foo": {0: ServiceState.terminated},
+            "bar": {0: ServiceState.terminated},
         },
         {
-            "foo": {"0": ServiceState.running},
-            "bar": {"0": ServiceState.terminated},
+            "foo": {0: ServiceState.running},
+            "bar": {0: ServiceState.terminated},
         },
     ),
 )
@@ -151,25 +151,25 @@ async def test_runner_app_state_starting(nodes_states):
 @pytest.mark.parametrize(
     "nodes_states",
     (
-        {"foo": {"0": ServiceState.pending}},
-        {"foo": {"0": ServiceState.starting}},
-        {"foo": {"0": ServiceState.running}},
-        {"foo": {"0": ServiceState.stopping}},
+        {"foo": {0: ServiceState.pending}},
+        {"foo": {0: ServiceState.starting}},
+        {"foo": {0: ServiceState.running}},
+        {"foo": {0: ServiceState.stopping}},
         {
-            "foo": {"0": ServiceState.starting},
-            "bar": {"0": ServiceState.starting},
+            "foo": {0: ServiceState.starting},
+            "bar": {0: ServiceState.starting},
         },
         {
-            "foo": {"0": ServiceState.stopping},
-            "bar": {"0": ServiceState.stopping},
+            "foo": {0: ServiceState.stopping},
+            "bar": {0: ServiceState.stopping},
         },
         {
-            "foo": {"0": ServiceState.running},
-            "bar": {"0": ServiceState.running},
+            "foo": {0: ServiceState.running},
+            "bar": {0: ServiceState.running},
         },
         {
-            "foo": {"0": ServiceState.running},
-            "bar": {"0": ServiceState.terminated},
+            "foo": {0: ServiceState.running},
+            "bar": {0: ServiceState.terminated},
         },
     ),
 )
@@ -191,8 +191,8 @@ async def test_runner_app_state_running():
     dapp_node_count = 2
     desired_app_state = ServiceState.running
     nodes_states = {
-        "foo": {"0": ServiceState.running},
-        "bar": {"0": ServiceState.running},
+        "foo": {0: ServiceState.running},
+        "bar": {0: ServiceState.running},
     }
 
     assert (
@@ -208,10 +208,10 @@ async def test_runner_app_state_running():
 @pytest.mark.parametrize(
     "nodes_states",
     (
-        {"foo": {"0": ServiceState.terminated}},
+        {"foo": {0: ServiceState.terminated}},
         {
-            "foo": {"0": ServiceState.terminated},
-            "bar": {"0": ServiceState.terminated},
+            "foo": {0: ServiceState.terminated},
+            "bar": {0: ServiceState.terminated},
         },
     ),
 )

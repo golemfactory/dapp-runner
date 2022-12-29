@@ -80,6 +80,8 @@ class Runner:
         self._startup_finished = False
         self._desired_app_state = ServiceState.pending
 
+        self._report_status_change()
+
     async def _create_networks(self):
         for name, desc in self.dapp.networks.items():
             self._networks[name] = await self.golem.create_network(**asdict(desc))
@@ -179,9 +181,6 @@ class Runner:
 
         self.commissioning_time = utcnow()
 
-        # broadcast current pending state, as we're getting ready to start services
-        self._emit_update_to_state_queue()
-
         # explicitly mark that we ultimately want app in "running" state,
         #  marking app into "starting" sequence.
         self._desired_app_state = ServiceState.running
@@ -206,7 +205,7 @@ class Runner:
         return cluster
 
     @property
-    def dapp_state(self) -> Dict[str, Dict[str, ServiceState]]:
+    def dapp_state(self) -> Dict[str, Dict[int, ServiceState]]:
         """Return the state of the dapp.
 
         State of the dapp is a dictionary containing the state of all the
@@ -215,7 +214,7 @@ class Runner:
 
         return {
             cluster_id: {
-                str(instance_index): instance.state
+                instance_index: instance.state
                 for instance_index, instance in enumerate(cluster.instances)
             }
             for cluster_id, cluster in self.clusters.items()
@@ -260,9 +259,9 @@ class Runner:
                 return
 
             # on a state change, we're publishing the state of the whole dapp
-            self._emit_update_to_state_queue()
+            self._report_status_change()
 
-    def _emit_update_to_state_queue(self) -> None:
+    def _report_status_change(self) -> None:
         """Emit message with full state update to state queue."""
 
         nodes_states = self.dapp_state
@@ -282,7 +281,7 @@ class Runner:
     def _get_app_state_from_nodes(
         dapp_node_count: int,
         desired_app_state: ServiceState,
-        nodes_states: Dict[str, Dict[str, ServiceState]],
+        nodes_states: Dict[str, Dict[int, ServiceState]],
     ) -> ServiceState:
         """Return general application state based on all instances states."""
 
