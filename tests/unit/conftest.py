@@ -41,6 +41,7 @@ def test_utils():
 
 @pytest.fixture(scope="session")
 def event_loop():
+    """Make async fixtures use same event loop."""
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:

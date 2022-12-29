@@ -47,6 +47,8 @@ def utcnow_iso_str() -> str:
 
 
 def json_encoder(obj: Any):
+    """Handle additional object types for `json.dump*` encoding."""
+
     if isinstance(obj, statemachine.State):
         return obj.name
 

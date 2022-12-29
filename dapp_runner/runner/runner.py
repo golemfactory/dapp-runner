@@ -3,7 +3,7 @@ import asyncio
 from dataclasses import asdict
 from datetime import datetime
 import logging
-from typing import Optional, Dict, List, Final, Set
+from typing import Optional, Dict, List, Final
 
 from yapapi import Golem
 from yapapi.contrib.service.http_proxy import LocalHttpProxy
@@ -182,7 +182,8 @@ class Runner:
         # broadcast current pending state, as we're getting ready to start services
         self._emit_update_to_state_queue()
 
-        # explicitly mark that we ultimately want app in "running" state, marking app into "starting" sequence.
+        # explicitly mark that we ultimately want app in "running" state,
+        #  marking app into "starting" sequence.
         self._desired_app_state = ServiceState.running
 
         await self.golem.start()
@@ -262,7 +263,7 @@ class Runner:
             self._emit_update_to_state_queue()
 
     def _emit_update_to_state_queue(self) -> None:
-        """Emit message with full state update to state queue"""
+        """Emit message with full state update to state queue."""
 
         nodes_states = self.dapp_state
 

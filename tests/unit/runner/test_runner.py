@@ -32,6 +32,8 @@ def test_running_time_elapsed(time_started, max_running_time, expected):
 
 @pytest.fixture
 def runner_config():
+    """Naive minimal example to satisfy Runner instantiation."""
+
     return Config(
         yagna=YagnaConfig(
             subnet_tag="public",
@@ -46,6 +48,7 @@ def runner_config():
 
 @pytest.fixture
 def dapp_descriptor():
+    """Naive minimal example to satisfy Runner instantiation."""
     return DappDescriptor(
         payloads={},
         nodes={},
@@ -54,6 +57,8 @@ def dapp_descriptor():
 
 @pytest.fixture
 def runner(runner_config, dapp_descriptor, mocker):
+    """Mostly mocked out Runner instance."""
+
     # TODO: How to mock Golem inside of Runner?
     runner = Runner(
         config=runner_config,
@@ -75,6 +80,7 @@ def runner(runner_config, dapp_descriptor, mocker):
 
 @pytest.mark.skip("needs properly mocked `yapapi.Golem`")
 async def test_runner_desired_state(runner):
+    """Test to check if desired app state is properly managed with app lifetime."""
     # TODO: Any way to avoid using non-public api?
     assert runner._desired_app_state == ServiceState.pending
 
@@ -88,6 +94,7 @@ async def test_runner_desired_state(runner):
 
 
 async def test_runner_app_state_pending():
+    """Test app state reporting at initial state of Runner."""
     dapp_node_count = 2
     desired_app_state = ServiceState.pending
     nodes_states = {}
@@ -127,6 +134,7 @@ async def test_runner_app_state_pending():
     ),
 )
 async def test_runner_app_state_starting(nodes_states):
+    """Test app state reporting while Runner is starting its services."""
     dapp_node_count = 2
     desired_app_state = ServiceState.running
 
@@ -164,6 +172,7 @@ async def test_runner_app_state_starting(nodes_states):
     ),
 )
 async def test_runner_app_state_stopping(nodes_states):
+    """Test app state reporting while Runner is stopping its services."""
     dapp_node_count = 2
     desired_app_state = ServiceState.terminated
 
@@ -176,6 +185,7 @@ async def test_runner_app_state_stopping(nodes_states):
 
 
 async def test_runner_app_state_running():
+    """Test app state reporting while Runner have all services running."""
     dapp_node_count = 2
     desired_app_state = ServiceState.running
     nodes_states = {
@@ -204,6 +214,7 @@ async def test_runner_app_state_running():
     ),
 )
 async def test_runner_app_state_terminated(nodes_states):
+    """Test app state reporting while Runner have all services terminated."""
     dapp_node_count = 2
     desired_app_state = ServiceState.terminated
 
