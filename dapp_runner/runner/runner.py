@@ -50,7 +50,9 @@ class Runner:
     _networks: Dict[str, Network]
     _tasks: List[asyncio.Task]
     _startup_finished: bool
-    _desired_app_state: ServiceState  # TODO: Introduce ApplicationState instead of reusing ServiceState
+
+    # TODO: Introduce ApplicationState instead of reusing ServiceState
+    _desired_app_state: ServiceState
 
     data_queue: asyncio.Queue
     state_queue: asyncio.Queue
