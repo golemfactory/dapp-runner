@@ -10,7 +10,7 @@ import traceback
 from typing import TextIO, Optional
 
 from dapp_runner.descriptor import Config, DappDescriptor, DescriptorError
-from dapp_runner._util import _print_env_info, utcnow
+from dapp_runner._util import _print_env_info, utcnow, json_encoder
 
 from .runner import Runner
 from .error import RunnerError
@@ -50,7 +50,9 @@ async def _run_app(
 
     await r.start()
     streamer = RunnerStreamer()
-    streamer.register_stream(r.state_queue, state_f, lambda msg: json.dumps(msg))
+    streamer.register_stream(
+        r.state_queue, state_f, lambda msg: json.dumps(msg, default=json_encoder)
+    )
     streamer.register_stream(r.data_queue, data_f, lambda msg: json.dumps(msg))
     if commands_f:
         streamer.add_task(
@@ -59,7 +61,9 @@ async def _run_app(
 
     if not silent:
         streamer.register_stream(
-            r.state_queue, sys.stdout, lambda msg: cyan(json.dumps(msg))
+            r.state_queue,
+            sys.stdout,
+            lambda msg: cyan(json.dumps(msg, default=json_encoder)),
         )
         streamer.register_stream(
             r.data_queue, sys.stdout, lambda msg: magenta(json.dumps(msg))

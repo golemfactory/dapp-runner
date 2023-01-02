@@ -19,7 +19,7 @@ from dapp_runner.descriptor.dapp import (
     PortMapping,
     ServiceDescriptor,
 )
-from dapp_runner._util import get_free_port, utcnow
+from dapp_runner._util import get_free_port, utcnow, utcnow_iso_str
 
 from .payload import get_payload
 from .service import get_service, DappService
@@ -51,6 +51,9 @@ class Runner:
     _tasks: List[asyncio.Task]
     _startup_finished: bool
 
+    # TODO: Introduce ApplicationState instead of reusing ServiceState
+    _desired_app_state: ServiceState
+
     data_queue: asyncio.Queue
     state_queue: asyncio.Queue
     command_queue: asyncio.Queue
@@ -77,6 +80,9 @@ class Runner:
         self.state_queue = asyncio.Queue()
         self.command_queue = asyncio.Queue()
         self._startup_finished = False
+        self._desired_app_state = ServiceState.pending
+
+        self._report_status_change()
 
     async def _create_networks(self):
         for name, desc in self.dapp.networks.items():
@@ -174,7 +180,13 @@ class Runner:
 
     async def start(self):
         """Start the Golem engine and the dapp."""
+
         self.commissioning_time = utcnow()
+
+        # explicitly mark that we ultimately want app in "running" state,
+        #  marking app into "starting" sequence.
+        self._desired_app_state = ServiceState.running
+
         await self.golem.start()
 
         await self._create_networks()
@@ -195,7 +207,7 @@ class Runner:
         return cluster
 
     @property
-    def dapp_state(self) -> dict:
+    def dapp_state(self) -> Dict[str, Dict[int, ServiceState]]:
         """Return the state of the dapp.
 
         State of the dapp is a dictionary containing the state of all the
@@ -204,10 +216,10 @@ class Runner:
 
         return {
             cluster_id: {
-                idx: self.clusters[cluster_id].instances[idx].state.name
-                for idx in range(len(self.clusters[cluster_id].instances))
+                instance_index: instance.state
+                for instance_index, instance in enumerate(cluster.instances)
             }
-            for cluster_id in self.clusters.keys()
+            for cluster_id, cluster in self.clusters.items()
         }
 
     @property
@@ -249,7 +261,57 @@ class Runner:
                 return
 
             # on a state change, we're publishing the state of the whole dapp
-            self.state_queue.put_nowait(self.dapp_state)
+            self._report_status_change()
+
+    def _report_status_change(self) -> None:
+        """Emit message with full state update to state queue."""
+
+        nodes_states = self.dapp_state
+
+        self.state_queue.put_nowait(
+            {
+                "nodes": nodes_states,
+                "app": self._get_app_state_from_nodes(
+                    len(self.dapp.nodes), self._desired_app_state, nodes_states
+                ),
+                "timestamp": utcnow_iso_str(),
+            }
+        )
+
+    # FIXME: #79 should remove forced staticmethod
+    @staticmethod
+    def _get_app_state_from_nodes(
+        dapp_node_count: int,
+        desired_app_state: ServiceState,
+        nodes_states: Dict[str, Dict[int, ServiceState]],
+    ) -> ServiceState:
+        """Return general application state based on all instances states."""
+
+        # Collect nested node states into simple unique collection of state values
+        all_states = set(
+            state for node in nodes_states.values() for state in node.values()
+        )
+
+        # If we want dapp to be running handle other states as starting
+        if desired_app_state == ServiceState.running:
+            # Check node-to-state parity because of node dependency,
+            #  states gradually rolls out
+            if ({desired_app_state} == all_states) and (
+                len(nodes_states) == dapp_node_count
+            ):
+                return ServiceState.running
+
+            return ServiceState.starting
+
+        # If we want dapp to be terminated handle other states as stopping
+        if desired_app_state == ServiceState.terminated:
+            if {desired_app_state} == all_states:
+                return ServiceState.terminated
+            else:
+                return ServiceState.stopping
+
+        # In other cases return pending
+        return ServiceState.pending
 
     async def _listen_data_queue(
         self, cluster_name: str, idx: int, service: DappService
@@ -325,6 +387,9 @@ class Runner:
     async def stop(self):
         """Stop the dapp and the Golem engine."""
         service_tasks: List[asyncio.Task] = []
+
+        # explicitly mark that we want dapp in terminated state
+        self._desired_app_state = ServiceState.terminated
 
         proxy_tasks = [p.stop() for p in self._http_proxies.values()]
         proxy_tasks.extend([p.stop() for p in self._tcp_proxies.values()])
