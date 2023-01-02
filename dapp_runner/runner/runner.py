@@ -50,7 +50,7 @@ class Runner:
     _networks: Dict[str, Network]
     _tasks: List[asyncio.Task]
     _startup_finished: bool
-    _desired_app_state: ServiceState
+    _desired_app_state: ServiceState  # TODO: Introduce ApplicationState instead of reusing ServiceState
 
     data_queue: asyncio.Queue
     state_queue: asyncio.Queue
@@ -276,7 +276,7 @@ class Runner:
             }
         )
 
-    # FIXME: Usage of @staticmethod is only for sake of unittests - to be removed
+    # FIXME: #79 should remove forced staticmethod
     @staticmethod
     def _get_app_state_from_nodes(
         dapp_node_count: int,

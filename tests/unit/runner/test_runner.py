@@ -80,7 +80,7 @@ def runner(runner_config, dapp_descriptor, mocker):
     return runner
 
 
-@pytest.mark.skip("needs properly mocked `yapapi.Golem`")
+@pytest.mark.skip("needs properly mocked `yapapi.Golem` from #79")
 async def test_runner_desired_state(runner):
     """Test to check if desired app state is properly managed with app lifetime."""
     # TODO: Any way to avoid using non-public api?
