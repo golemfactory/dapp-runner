@@ -11,6 +11,7 @@ from typing import TextIO, Optional
 
 from dapp_runner.descriptor import Config, DappDescriptor, DescriptorError
 from dapp_runner._util import _print_env_info, utcnow, json_encoder
+from dapp_runner.log import enable_logger
 
 from .runner import Runner
 from .error import RunnerError
@@ -121,6 +122,9 @@ def start_runner(
     dapp_dict: dict,
     data: Path,
     state: Path,
+    log: Path,
+    dev: bool,
+    debug: bool,
     commands: Optional[Path] = None,
     stdout: Optional[Path] = None,
     stderr: Optional[Path] = None,
@@ -141,6 +145,12 @@ def start_runner(
             stack.enter_context(
                 redirect_stderr(stack.enter_context(open(str(stderr), "w", 1)))
             )
+
+        enable_logger(
+            log_file=str(log.resolve()),
+            enable_warnings=dev,
+            console_log_level=logging.DEBUG if debug else logging.INFO,
+        )
 
         commands_f = (
             stack.enter_context(open(str(commands), "w+", 1)) if commands else None

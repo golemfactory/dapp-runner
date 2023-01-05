@@ -122,12 +122,6 @@ def start(
         if not param_value:
             kwargs[param_name] = app_dir / param_name
 
-    enable_logger(
-        log_file=str(kwargs.pop("log").resolve()),
-        enable_warnings=kwargs.pop("dev"),
-        console_log_level=logging.DEBUG if kwargs.pop("debug") else logging.INFO,
-    )
-
     start_runner(config_dict, dapp_dict, **kwargs)
 
 
