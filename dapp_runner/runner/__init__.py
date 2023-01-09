@@ -113,8 +113,8 @@ async def _run_app(
             logger.info("Maximum running time: %s elapsed.", max_running_time)
 
         logger.info("Stopping the application...")
-        await r.stop()
         await streamer.stop()
+        await r.stop()
 
 
 def start_runner(
