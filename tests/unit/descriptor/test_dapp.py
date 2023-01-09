@@ -3,15 +3,15 @@ import pytest
 
 from dapp_runner.descriptor import DappDescriptor, DescriptorError
 from dapp_runner.descriptor.dapp import (
-    PayloadDescriptor,
-    ServiceDescriptor,
+    VM_CAPS_MANIFEST,
+    VM_CAPS_VPN,
+    VM_PAYLOAD_CAPS_KWARG,
     CommandDescriptor,
     HttpProxyDescriptor,
-    SocketProxyDescriptor,
+    PayloadDescriptor,
     PortMapping,
-    VM_PAYLOAD_CAPS_KWARG,
-    VM_CAPS_VPN,
-    VM_CAPS_MANIFEST,
+    ServiceDescriptor,
+    SocketProxyDescriptor,
 )
 
 

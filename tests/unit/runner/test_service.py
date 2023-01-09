@@ -1,20 +1,19 @@
 """Unit tests for dapp_runner.descriptor.service."""
 import asyncio
-
-import pytest
 from typing import Final
 from unittest.mock import Mock
 
-from yapapi.ctx import WorkContext, Script
-from yapapi.payload import Payload
+import pytest
+from yapapi.ctx import Script, WorkContext
 from yapapi.network import Network
+from yapapi.payload import Payload
 from yapapi.script import Run
 
 from dapp_runner.descriptor.dapp import (
-    ServiceDescriptor,
+    CommandDescriptor,
     HttpProxyDescriptor,
     PortMapping,
-    CommandDescriptor,
+    ServiceDescriptor,
 )
 from dapp_runner.runner import RunnerError
 from dapp_runner.runner.service import DappService, HttpProxyDappService, get_service

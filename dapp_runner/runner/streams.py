@@ -2,18 +2,19 @@
 import asyncio
 from collections import defaultdict
 from dataclasses import dataclass
-
 from typing import (
+    Any,
     Callable,
     Coroutine,
     Dict,
+    Generic,
     List,
     Optional,
     TextIO,
-    Any,
     TypeVar,
-    Generic,
 )
+
+from dapp_runner._util import cancel_and_await_tasks
 
 Msg = TypeVar("Msg")
 
@@ -30,10 +31,7 @@ class RunnerStream(Generic[Msg]):
     async def update(self):
         """Await the queue and write to the output stream."""
         while True:
-            try:
-                msg = await self.queue.get()
-            except asyncio.CancelledError:
-                return
+            msg = await self.queue.get()
 
             if self.process_callback:
                 msg = self.process_callback(msg)
@@ -74,10 +72,7 @@ class RunnerStreamer:
 
     async def _feed_queue(self, queue: asyncio.Queue):
         while True:
-            try:
-                msg = await queue.get()
-            except asyncio.CancelledError:
-                return
+            msg = await queue.get()
 
             for runner_stream in self._streams[queue]:
                 runner_stream.queue.put_nowait(msg)
@@ -88,6 +83,4 @@ class RunnerStreamer:
 
     async def stop(self):
         """Stop the stream feed tasks."""
-        for t in self._tasks:
-            t.cancel()
-        await asyncio.gather(*self._tasks)
+        await cancel_and_await_tasks(*self._tasks)

@@ -3,15 +3,14 @@
 Utilizes yapapi and yagna to spawn complete decentralized apps on Golem, according
 to a specification in the dapp's descriptor.
 """
-from datetime import datetime
 import logging
+from datetime import datetime
 from pathlib import Path
 from typing import Tuple
 
 import appdirs
 import click
 import shortuuid
-
 
 from dapp_runner import MODULE_AUTHOR, MODULE_NAME
 from dapp_runner.descriptor.parser import load_yamls

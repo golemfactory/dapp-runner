@@ -1,21 +1,27 @@
 import asyncio
-from colors import cyan, magenta, green
-from contextlib import ExitStack, redirect_stdout, redirect_stderr
-from datetime import datetime, timedelta
 import json
 import logging
-from pathlib import Path
 import sys
 import traceback
-from typing import TextIO, Optional
+from contextlib import ExitStack, redirect_stderr, redirect_stdout
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Optional, TextIO
 
+from colors import cyan, green, magenta
+
+from dapp_runner._util import (
+    _print_env_info,
+    cancel_and_await_tasks,
+    json_encoder,
+    utcnow,
+)
 from dapp_runner.descriptor import Config, DappDescriptor, DescriptorError
-from dapp_runner._util import _print_env_info, utcnow, json_encoder
 from dapp_runner.log import enable_logger
 
-from .runner import Runner
 from .error import RunnerError
 from .infile import feed_from_file
+from .runner import Runner
 from .streams import RunnerStreamer
 
 DEFAULT_STARTUP_TIMEOUT = 240  # seconds
@@ -105,16 +111,13 @@ async def _run_app(
             time_started, max_running_time
         ):
             await asyncio.sleep(1)
-
-    except asyncio.CancelledError:
-        logger.info("Sigint received.")
     finally:
         if _running_time_elapsed(time_started, max_running_time):
             logger.info("Maximum running time: %s elapsed.", max_running_time)
 
         logger.info("Stopping the application...")
-        await streamer.stop()
         await r.stop()
+        await streamer.stop()
 
 
 def start_runner(
@@ -165,12 +168,12 @@ def start_runner(
             loop.run_until_complete(task)
         except KeyboardInterrupt:
             logger.info("Shutting down ...")
-            task.cancel()
             try:
-                loop.run_until_complete(task)
+                loop.run_until_complete(cancel_and_await_tasks(task))
+            except KeyboardInterrupt:
+                logger.info("Shutdown interrupted")
+            else:
                 logger.info("Shutdown completed")
-            except (asyncio.CancelledError, KeyboardInterrupt):
-                pass
         except Exception:  # noqa
             sys.stderr.write(traceback.format_exc())
 

@@ -2,7 +2,7 @@
 import pytest
 
 from dapp_runner.descriptor import DescriptorError
-from dapp_runner.descriptor.config import Config, YagnaConfig, PaymentConfig
+from dapp_runner.descriptor.config import Config, PaymentConfig, YagnaConfig
 
 
 @pytest.mark.parametrize(

@@ -1,7 +1,6 @@
 """yapapi Service bindings."""
 import asyncio
-from typing import Dict, List, Tuple, Type, Optional
-
+from typing import Dict, List, Optional, Tuple, Type
 
 from yapapi.contrib.service.http_proxy import HttpProxyService
 from yapapi.network import Network
@@ -10,9 +9,9 @@ from yapapi.script import Script
 from yapapi.services import Service, ServiceState
 
 from dapp_runner.descriptor.dapp import (
-    ServiceDescriptor,
-    CommandDescriptor,
     EXEUNIT_CMD_RUN,
+    CommandDescriptor,
+    ServiceDescriptor,
 )
 
 from .error import RunnerError

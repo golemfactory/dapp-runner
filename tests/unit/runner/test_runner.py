@@ -1,15 +1,14 @@
 """Tests for `dapp_runner.runner`."""
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict
-
-import pytest
 from unittest import mock
 
+import pytest
 from yapapi.services import ServiceState
 
 from dapp_runner.descriptor import Config, DappDescriptor
-from dapp_runner.descriptor.config import YagnaConfig, PaymentConfig
-from dapp_runner.runner import _running_time_elapsed, Runner  # noqa
+from dapp_runner.descriptor.config import PaymentConfig, YagnaConfig
+from dapp_runner.runner import Runner, _running_time_elapsed  # noqa
 
 
 def _some_datetime(offset: int = 0):
