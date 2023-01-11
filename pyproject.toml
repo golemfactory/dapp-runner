@@ -17,8 +17,19 @@ classifiers = [
 repository = "https://github.com/golemfactory/dapp-runner"
 readme = "README.md"
 
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[[tool.poetry.source]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+default = false
+secondary = true
+
 [tool.poetry.dependencies]
 python = "^3.8"
+
 appdirs = "^1.4"
 click = "^8.1"
 dpath = "^2.0"
@@ -28,9 +39,10 @@ ansicolors = "^1.1.8"
 networkx = "^2.8"
 yapapi = "^0.10.0"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
+autoflake = "^1"
 black = "^22.1"
-flake8 = "^3.9"
+flake8 = "^5"
 flake8-docstrings = "^1.6"
 mypy = "^0.942"
 poethepoet = "^0.13"
@@ -39,15 +51,27 @@ pytest-asyncio = "^0.18.3"
 pytest-cov = "^3.0.0"
 liccheck = "^0.7.2"
 pytest-mock = "^3.10.0"
+setuptools = "*"
 
 [tool.poetry.scripts]
 dapp-runner = "dapp_runner.__main__:_cli"
 
-[[tool.poetry.source]]
-name = "testpypi"
-url = "https://test.pypi.org/simple/"
-default = false
-secondary = true
+[tool.poe.tasks]
+_checks_codestyle_flake8 = "flake8"
+_checks_codestyle_isort = "isort --check-only --diff ."
+_checks_codestyle_black = "black --check --diff ."
+checks_codestyle = ["_checks_codestyle_flake8", "_checks_codestyle_isort", "_checks_codestyle_black"]
+checks_typing  = "mypy --install-types --non-interactive --ignore-missing-imports --check-untyped-defs --warn-unused-ignores --show-error-codes ."
+_checks_license_export = "poetry export -f requirements.txt -o .requirements.txt"
+_checks_license_verify = "liccheck -r .requirements.txt"
+checks_license = ["_checks_license_export", "_checks_license_verify"]
+checks = ["checks_codestyle", "checks_typing", "checks_license"]
+_format_autoflake = "autoflake ."
+_format_isort = "isort ."
+_format_black = "black ."
+format = ["_format_autoflake", "_format_isort", "_format_black"]
+tests_ut = "pytest --cov --cov-report html --cov-report term -sv tests/unit"
+tests = ["tests_ut"]
 
 [tool.liccheck]
 authorized_licenses = [
@@ -57,6 +81,7 @@ authorized_licenses = [
   "apache 2",
   "apache",
   "Apache Software",
+  "Apache Software License",
   "MPL-2.0",
   "Mozilla Public License 2.0 (MPL 2.0)",
   "MIT",
@@ -72,20 +97,20 @@ unauthorized_licenses = [
   "gpl v3"
 ]
 
-[tool.poe.tasks]
-lint = "flake8"
-codestyle = "black --check --diff ."
-typecheck  = "mypy --install-types --non-interactive --ignore-missing-imports --check-untyped-defs --warn-unused-ignores --show-error-codes ."
-_liccheck_export = "poetry export -f requirements.txt -o .requirements.txt"
-_liccheck_verify = "liccheck -r .requirements.txt"
-liccheck = ["_liccheck_export", "_liccheck_verify"]
-check = ["lint", "codestyle", "typecheck", "liccheck"]
-unittest = "pytest --cov --cov-report html --cov-report term -sv tests/unit"
-test = ["unittest", "check"]
+[tool.autoflake]
+recursive = true
+in-place = true
+remove-all-unused-imports = true
+ignore-init-module-imports = true
+
+[tool.isort]
+profile = "black"
+py_version = 38
+known_golem = "goth, yapapi, ya_activity, ya_market, ya_net, ya_payment"
+sections = ["FUTURE", "STDLIB", "THIRDPARTY", "GOLEM", "FIRSTPARTY", "LOCALFOLDER"]
+
+[tool.black]
+target-version = ['py38']
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
