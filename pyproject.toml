@@ -40,6 +40,8 @@ networkx = "^2.8"
 yapapi = "^0.10.0"
 
 [tool.poetry.group.dev.dependencies]
+setuptools = "*"
+
 autoflake = "^1"
 black = "^22.1"
 flake8 = "^5"
@@ -51,7 +53,7 @@ pytest-asyncio = "^0.18.3"
 pytest-cov = "^3.0.0"
 liccheck = "^0.7.2"
 pytest-mock = "^3.10.0"
-setuptools = "*"
+isort = "^5.11.4"
 
 [tool.poetry.scripts]
 dapp-runner = "dapp_runner.__main__:_cli"
