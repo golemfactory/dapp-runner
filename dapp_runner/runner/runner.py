@@ -1,9 +1,9 @@
 """Main Dapp Runner module."""
 import asyncio
+import logging
 from dataclasses import asdict
 from datetime import datetime
-import logging
-from typing import Optional, Dict, List, Final
+from typing import Dict, Final, List, Optional
 
 from yapapi import Golem
 from yapapi.contrib.service.http_proxy import LocalHttpProxy
@@ -13,16 +13,21 @@ from yapapi.network import Network
 from yapapi.payload import Payload
 from yapapi.services import Cluster, Service, ServiceState
 
+from dapp_runner._util import (
+    cancel_and_await_tasks,
+    get_free_port,
+    utcnow,
+    utcnow_iso_str,
+)
 from dapp_runner.descriptor import Config, DappDescriptor
 from dapp_runner.descriptor.dapp import (
     CommandDescriptor,
     PortMapping,
     ServiceDescriptor,
 )
-from dapp_runner._util import get_free_port, utcnow, utcnow_iso_str
 
 from .payload import get_payload
-from .service import get_service, DappService
+from .service import DappService, get_service
 
 LOCAL_HTTP_PROXY_DATA_KEY: Final[str] = "local_proxy_address"
 LOCAL_TCP_PROXY_DATA_KEY: Final[str] = "local_tcp_proxy_address"
@@ -255,10 +260,7 @@ class Runner:
     async def _listen_state_queue(self, service: DappService):
         """On a state change of the instance, update the Runner's state stream."""
         while True:
-            try:
-                await service.state_queue.get()
-            except asyncio.CancelledError:
-                return
+            await service.state_queue.get()
 
             # on a state change, we're publishing the state of the whole dapp
             self._report_status_change()
@@ -318,10 +320,7 @@ class Runner:
     ):
         """Pass data messages from the instance to the Runner's queue."""
         while True:
-            try:
-                msg = await service.data_queue.get()
-            except asyncio.CancelledError:
-                return
+            msg = await service.data_queue.get()
 
             self.data_queue.put_nowait(
                 {cluster_name: {idx: self._process_data_message(msg)}}
@@ -345,10 +344,7 @@ class Runner:
     async def _listen_incoming_command_queue(self):
         """Pass data messages from the instance to the Runner's queue."""
         while True:
-            try:
-                msg: Dict = await self.command_queue.get()
-            except asyncio.CancelledError:
-                return
+            msg: Dict = await self.command_queue.get()
 
             for cluster_name, cluster_cmd_dict in msg.items():
                 cluster = self.clusters.get(cluster_name)
@@ -407,6 +403,5 @@ class Runner:
         await self.golem.stop()
 
         await asyncio.gather(*service_tasks)
-        for t in self._tasks:
-            t.cancel()
-        await asyncio.gather(*self._tasks)
+
+        await cancel_and_await_tasks(*self._tasks)

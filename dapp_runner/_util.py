@@ -1,11 +1,13 @@
-from datetime import datetime, timezone
+import asyncio
 import socket
+from asyncio import Task
+from datetime import datetime, timezone
 from typing import Any
 
 import statemachine
-from yapapi import Golem, __version__ as yapapi_version
-
 from colors import yellow
+from yapapi import Golem
+from yapapi import __version__ as yapapi_version
 
 
 def get_free_port(range_start: int = 8080, range_end: int = 9090) -> int:
@@ -53,3 +55,19 @@ def json_encoder(obj: Any):
         return obj.name
 
     return obj
+
+
+async def cancel_and_await_tasks(*tasks: Task) -> None:
+    """Cancel and await cleanup of provided tasks."""
+
+    # Mark all remaining tasks as cancelled at once
+    for task in tasks:
+        task.cancel()
+
+    # Give tasks a chance for cleanup by awaiting and
+    #  expecting CancelledError (default asyncio behaviour)
+    for task in tasks:
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass

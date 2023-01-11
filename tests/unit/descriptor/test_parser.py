@@ -4,9 +4,10 @@ Values used in `assert` calls are taken from test YAML files located in
 `./yaml` directory.
 """
 
-import pytest
 from pathlib import Path
 from typing import List
+
+import pytest
 
 from dapp_runner.descriptor import parser
 

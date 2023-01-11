@@ -1,12 +1,12 @@
 """Class definitions for the Dapp Runner's dapp descriptor."""
 import logging
 from dataclasses import dataclass, field, fields
+from typing import Any, Dict, Final, List, Optional, Tuple
+
 import networkx
-from typing import Dict, List, Any, Optional, Final, Tuple
+from yapapi.payload import vm
 
 from .base import BaseDescriptor, DescriptorError
-
-from yapapi.payload import vm
 
 NETWORK_DEFAULT_NAME: Final[str] = "default"
 

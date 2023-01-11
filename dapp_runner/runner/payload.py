@@ -1,15 +1,16 @@
 """yapapi Payload bindings."""
 
 import inspect
-from typing import Dict, Union, Callable, Awaitable
+from typing import Awaitable, Callable, Dict, Union
 
-from yapapi.payload import vm, Payload
+from yapapi.payload import Payload, vm
 
 from dapp_runner.descriptor.dapp import (
-    PayloadDescriptor,
     PAYLOAD_RUNTIME_VM,
     PAYLOAD_RUNTIME_VM_MANIFEST,
+    PayloadDescriptor,
 )
+
 from .error import RunnerError
 
 

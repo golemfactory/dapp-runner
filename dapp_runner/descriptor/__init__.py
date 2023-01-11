@@ -1,6 +1,6 @@
 from .base import DescriptorError
-from .dapp import DappDescriptor
 from .config import Config
+from .dapp import DappDescriptor
 
 __all__ = (
     "DappDescriptor",

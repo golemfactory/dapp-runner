@@ -1,7 +1,7 @@
 """Python logging configuration for the `dapp-runner`."""
 import logging
-from typing import Optional
 import warnings
+from typing import Optional
 
 from yapapi import __version__ as yapapi_version
 from yapapi.log import _YagnaDatetimeFormatter  # noqa

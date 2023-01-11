@@ -1,7 +1,6 @@
 """Dapp runner descriptor base classes."""
-from dataclasses import dataclass, fields, Field
-
-from typing import Generic, Type, TypeVar, Dict, List, Any, Union
+from dataclasses import Field, dataclass, fields
+from typing import Any, Dict, Generic, List, Type, TypeVar, Union
 
 
 class DescriptorError(Exception):
