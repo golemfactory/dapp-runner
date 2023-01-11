@@ -29,7 +29,6 @@ jobs:
 
       - run: python -m pip install --upgrade pip
       - run: poetry install
-      - run: poetry run poe lint
-      - run: poetry run poe codestyle
-      - run: poetry run poe typecheck
-      - run: poetry run poe liccheck
+      - run: poetry run poe checks_codestyle
+      - run: poetry run poe checks_typing
+      - run: poetry run poe check_license
