@@ -58,7 +58,7 @@ def json_encoder(obj: Any):
 
 
 async def cancel_and_await_tasks(*tasks: Task) -> None:
-    """Cancel and await for cleanup of provided tasks."""
+    """Cancel and await cleanup of provided tasks."""
 
     # Mark all remaining tasks as cancelled at once
     for task in tasks:
