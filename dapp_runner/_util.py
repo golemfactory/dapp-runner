@@ -64,7 +64,7 @@ async def cancel_and_await_tasks(*tasks: Task) -> None:
     for task in tasks:
         task.cancel()
 
-    # Give tasks a chance for cleanup by awaiting end
+    # Give tasks a chance for cleanup by awaiting and
     #  expecting CancelledError (default asyncio behaviour)
     for task in tasks:
         try:
