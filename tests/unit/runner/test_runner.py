@@ -6,9 +6,10 @@ from unittest import mock
 import pytest
 from yapapi.services import ServiceState
 
-from dapp_runner.descriptor import Config, DappDescriptor
-from dapp_runner.descriptor.config import PaymentConfig, YagnaConfig
 from dapp_runner.runner import Runner, _running_time_elapsed  # noqa
+
+from tests.factories.descriptor.config import ConfigFactory
+from tests.factories.descriptor.dapp import DappDescriptorFactory
 
 
 def _some_datetime(offset: int = 0):
@@ -31,58 +32,24 @@ def test_running_time_elapsed(time_started, max_running_time, expected):
     assert _running_time_elapsed(time_started, max_running_time) == expected
 
 
-@pytest.fixture
-def runner_config():
-    """Naive minimal example to satisfy Runner instantiation."""
-
-    return Config(
-        yagna=YagnaConfig(
-            subnet_tag="public",
-        ),
-        payment=PaymentConfig(
-            budget=1,
-            driver="erc20",
-            network="rinkeby",
-        ),
-    )
-
-
-@pytest.fixture
-def dapp_descriptor():
-    """Naive minimal example to satisfy Runner instantiation."""
-    return DappDescriptor(
-        payloads={},
-        nodes={},
-    )
-
-
-@pytest.fixture
-def runner(runner_config, dapp_descriptor, mocker):
+@pytest.fixture(scope="function")
+def runner(mocker):
     """Mostly mocked out Runner instance."""
 
-    # TODO: How to mock Golem inside of Runner?
-    runner = Runner(
-        config=runner_config,
-        dapp=dapp_descriptor,
-    )
+    mocker.patch("yapapi.golem.Golem._get_new_engine", mock.Mock())
+    mocker.patch("yapapi.golem.Golem.start", mock.AsyncMock())
+    mocker.patch("yapapi.golem.Golem.stop", mock.AsyncMock())
 
-    # Naive simplification of two nodes
-    mocker.patch.object(
-        runner.dapp,
-        "nodes",
-        {
-            "foo": None,
-            "bar": None,
-        },
+    runner = Runner(
+        config=ConfigFactory(),
+        dapp=DappDescriptorFactory(),
     )
 
     return runner
 
 
-@pytest.mark.skip("needs properly mocked `yapapi.Golem` from #79")
 async def test_runner_desired_state(runner):
     """Test to check if desired app state is properly managed with app lifetime."""
-    # TODO: Any way to avoid using non-public api?
     assert runner._desired_app_state == ServiceState.pending
 
     await runner.start()
