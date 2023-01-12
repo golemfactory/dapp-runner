@@ -41,6 +41,7 @@ yapapi = "^0.10.0"
 
 [tool.poetry.group.dev.dependencies]
 setuptools = "*"  # implicitly required by liccehck
+pip = "*"  # implicitly required by liccehck
 
 autoflake = "^1"
 black = "^22.1"
