@@ -18,7 +18,8 @@ jobs:
         with:
           poetry-version: 1.2.0
       - run: poetry install
-      - run: poetry run poe test
+      - run: poetry run poe checks
+      - run: poetry run poe tests
 
   build:
     needs: [release_test]

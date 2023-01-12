@@ -6,8 +6,6 @@ from typing import Any, Dict, Generic, List, Type, TypeVar, Union
 class DescriptorError(Exception):
     """Error while loading a Dapp Runner descriptor."""
 
-    pass
-
 
 DescriptorType = TypeVar("DescriptorType", bound="BaseDescriptor")
 

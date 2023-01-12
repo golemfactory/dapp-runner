@@ -4,6 +4,7 @@ from typing import Dict
 from unittest import mock
 
 import pytest
+
 from yapapi.services import ServiceState
 
 from dapp_runner.descriptor import Config, DappDescriptor

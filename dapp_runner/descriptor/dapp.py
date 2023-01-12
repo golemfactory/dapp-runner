@@ -4,6 +4,7 @@ from dataclasses import dataclass, field, fields
 from typing import Any, Dict, Final, List, Optional, Tuple
 
 import networkx
+
 from yapapi.payload import vm
 
 from .base import BaseDescriptor, DescriptorError
