@@ -40,7 +40,7 @@ networkx = "^2.8"
 yapapi = "^0.10.0"
 
 [tool.poetry.group.dev.dependencies]
-setuptools = "*"
+setuptools = "*"  # implicitly required by liccehck
 
 autoflake = "^1"
 black = "^22.1"
@@ -59,21 +59,21 @@ isort = "^5.11.4"
 dapp-runner = "dapp_runner.__main__:_cli"
 
 [tool.poe.tasks]
+checks = {sequence = ["checks_codestyle", "checks_typing", "checks_license"], help = "Runs all available code checks"}
+checks_codestyle = {sequence = ["_checks_codestyle_flake8", "_checks_codestyle_isort", "_checks_codestyle_black"], help = "Runs only code style checks"}
 _checks_codestyle_flake8 = "flake8"
 _checks_codestyle_isort = "isort --check-only --diff ."
 _checks_codestyle_black = "black --check --diff ."
-checks_codestyle = ["_checks_codestyle_flake8", "_checks_codestyle_isort", "_checks_codestyle_black"]
-checks_typing  = "mypy --install-types --non-interactive --ignore-missing-imports --check-untyped-defs --warn-unused-ignores --show-error-codes ."
+checks_typing  = {cmd = "mypy --install-types --non-interactive --ignore-missing-imports --check-untyped-defs --warn-unused-ignores --show-error-codes .", help = "Runs only code typing checks" }
+checks_license = {sequence = ["_checks_license_export", "_checks_license_verify"], help = "Runs only license compatibility checks"}
 _checks_license_export = "poetry export -f requirements.txt -o .requirements.txt"
 _checks_license_verify = "liccheck -r .requirements.txt"
-checks_license = ["_checks_license_export", "_checks_license_verify"]
-checks = ["checks_codestyle", "checks_typing", "checks_license"]
+format = {sequence = ["_format_autoflake", "_format_isort", "_format_black"], help = "Runs code auto formatting"}
 _format_autoflake = "autoflake ."
 _format_isort = "isort ."
 _format_black = "black ."
-format = ["_format_autoflake", "_format_isort", "_format_black"]
-tests_ut = "pytest --cov --cov-report html --cov-report term -sv tests/unit"
-tests = ["tests_ut"]
+tests = {sequence = ["tests_ut"], help = "Runs all available types of tests"}
+tests_ut = {cmd = "pytest --cov --cov-report html --cov-report term -sv tests/unit", help = "Runs only unit tests"}
 
 [tool.liccheck]
 authorized_licenses = [
