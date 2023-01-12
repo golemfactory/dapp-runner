@@ -63,7 +63,7 @@ dapp-runner = "dapp_runner.__main__:_cli"
 [tool.poe.tasks]
 checks = {sequence = ["checks_codestyle", "checks_typing", "checks_license"], help = "Run all available code checks"}
 checks_codestyle = {sequence = ["_checks_codestyle_flake8", "_checks_codestyle_isort", "_checks_codestyle_black"], help = "Run only code style checks"}
-_checks_codestyle_flake8 = "flake8"
+_checks_codestyle_flake8 = "flake8 dapp_runner tests"
 _checks_codestyle_isort = "isort --check-only --diff ."
 _checks_codestyle_black = "black --check --diff ."
 checks_typing  = {cmd = "mypy --install-types --non-interactive --ignore-missing-imports --check-untyped-defs --warn-unused-ignores --show-error-codes .", help = "Run only code typing checks" }
@@ -109,6 +109,14 @@ ignore-init-module-imports = true
 
 [tool.flake8]
 max-line-length = 88
+extend-ignore = [
+    "E203", # See https://github.com/PyCQA/pycodestyle/issues/373
+    "E231", # black ignores this rule when formatting
+    "D105", # No docs for magic method
+    "D104", # No docs for public package
+    "D107", # No docs for __init__
+    "D202", # We prefere whitelines after docstrings
+]
 
 [tool.isort]
 profile = "black"
