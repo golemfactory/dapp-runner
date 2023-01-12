@@ -47,6 +47,7 @@ autoflake = "^1"
 black = "^22.1"
 flake8 = "^5"
 flake8-docstrings = "^1.6"
+Flake8-pyproject = "^1.2.2"
 mypy = "^0.942"
 poethepoet = "^0.13"
 pytest = "^7.1"
@@ -105,6 +106,9 @@ recursive = true
 in-place = true
 remove-all-unused-imports = true
 ignore-init-module-imports = true
+
+[tool.flake8]
+max-line-length = 88
 
 [tool.isort]
 profile = "black"
