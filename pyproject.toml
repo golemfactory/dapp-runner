@@ -74,8 +74,8 @@ format = {sequence = ["_format_autoflake", "_format_isort", "_format_black"], he
 _format_autoflake = "autoflake ."
 _format_isort = "isort ."
 _format_black = "black ."
-tests = {sequence = ["tests_ut"], help = "Run all available tests"}
-tests_ut = {cmd = "pytest --cov --cov-report html --cov-report term -sv tests/unit", help = "Run only unit tests"}
+tests = {sequence = ["tests_unit"], help = "Run all available tests"}
+tests_unit = {cmd = "pytest --cov --cov-report html --cov-report term -sv tests/unit", help = "Run only unit tests"}
 
 [tool.liccheck]
 authorized_licenses = [
