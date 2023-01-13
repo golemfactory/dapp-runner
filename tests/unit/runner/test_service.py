@@ -213,9 +213,7 @@ async def test_get_service(
 ):
     """Verify the generated service defintion."""
     try:
-        service_class, run_service_kwargs = await get_service(
-            "", descriptor, payloads, networks
-        )
+        service_class, run_service_kwargs = await get_service("", descriptor, payloads, networks)
         assert issubclass(service_class, base_class)
         assert run_service_kwargs == expected_kwargs
     except Exception as e:  # noqa

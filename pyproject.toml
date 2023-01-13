@@ -108,7 +108,7 @@ remove-all-unused-imports = true
 ignore-init-module-imports = true
 
 [tool.flake8]
-max-line-length = 88
+max-line-length = 100
 extend-ignore = [
     "E203", # See https://github.com/PyCQA/pycodestyle/issues/373
     "E231", # black ignores this rule when formatting
@@ -125,6 +125,7 @@ known_golem = "goth, yapapi, ya_activity, ya_market, ya_net, ya_payment"
 sections = ["FUTURE", "STDLIB", "THIRDPARTY", "GOLEM", "FIRSTPARTY", "LOCALFOLDER"]
 
 [tool.black]
+line-length = 100
 target-version = ['py38']
 
 [tool.pytest.ini_options]

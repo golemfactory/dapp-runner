@@ -102,9 +102,7 @@ async def test_runner_app_state_pending():
     nodes_states: Dict[str, Dict[int, ServiceState]] = {}
 
     assert (
-        Runner._get_app_state_from_nodes(
-            dapp_node_count, desired_app_state, nodes_states
-        )
+        Runner._get_app_state_from_nodes(dapp_node_count, desired_app_state, nodes_states)
         == ServiceState.pending
     )
 
@@ -141,9 +139,7 @@ async def test_runner_app_state_starting(nodes_states):
     desired_app_state = ServiceState.running
 
     assert (
-        Runner._get_app_state_from_nodes(
-            dapp_node_count, desired_app_state, nodes_states
-        )
+        Runner._get_app_state_from_nodes(dapp_node_count, desired_app_state, nodes_states)
         == ServiceState.starting
     )
 
@@ -179,9 +175,7 @@ async def test_runner_app_state_stopping(nodes_states):
     desired_app_state = ServiceState.terminated
 
     assert (
-        Runner._get_app_state_from_nodes(
-            dapp_node_count, desired_app_state, nodes_states
-        )
+        Runner._get_app_state_from_nodes(dapp_node_count, desired_app_state, nodes_states)
         == ServiceState.stopping
     )
 
@@ -221,8 +215,6 @@ async def test_runner_app_state_terminated(nodes_states):
     desired_app_state = ServiceState.terminated
 
     assert (
-        Runner._get_app_state_from_nodes(
-            dapp_node_count, desired_app_state, nodes_states
-        )
+        Runner._get_app_state_from_nodes(dapp_node_count, desired_app_state, nodes_states)
         == ServiceState.terminated
     )
