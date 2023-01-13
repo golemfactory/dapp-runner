@@ -2,17 +2,7 @@
 import asyncio
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import (
-    Any,
-    Callable,
-    Coroutine,
-    Dict,
-    Generic,
-    List,
-    Optional,
-    TextIO,
-    TypeVar,
-)
+from typing import Any, Callable, Coroutine, Dict, Generic, List, Optional, TextIO, TypeVar
 
 from dapp_runner._util import cancel_and_await_tasks
 

@@ -13,18 +13,9 @@ from yapapi.network import Network
 from yapapi.payload import Payload
 from yapapi.services import Cluster, Service, ServiceState
 
-from dapp_runner._util import (
-    cancel_and_await_tasks,
-    get_free_port,
-    utcnow,
-    utcnow_iso_str,
-)
+from dapp_runner._util import cancel_and_await_tasks, get_free_port, utcnow, utcnow_iso_str
 from dapp_runner.descriptor import Config, DappDescriptor
-from dapp_runner.descriptor.dapp import (
-    CommandDescriptor,
-    PortMapping,
-    ServiceDescriptor,
-)
+from dapp_runner.descriptor.dapp import CommandDescriptor, PortMapping, ServiceDescriptor
 
 from .payload import get_payload
 from .service import DappService, get_service

@@ -10,12 +10,7 @@ from typing import Optional, TextIO
 
 from colors import cyan, green, magenta
 
-from dapp_runner._util import (
-    _print_env_info,
-    cancel_and_await_tasks,
-    json_encoder,
-    utcnow,
-)
+from dapp_runner._util import _print_env_info, cancel_and_await_tasks, json_encoder, utcnow
 from dapp_runner.descriptor import Config, DappDescriptor, DescriptorError
 from dapp_runner.log import enable_logger
 

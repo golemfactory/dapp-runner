@@ -8,11 +8,7 @@ from yapapi.payload import Payload
 from yapapi.script import Script
 from yapapi.services import Service, ServiceState
 
-from dapp_runner.descriptor.dapp import (
-    EXEUNIT_CMD_RUN,
-    CommandDescriptor,
-    ServiceDescriptor,
-)
+from dapp_runner.descriptor.dapp import EXEUNIT_CMD_RUN, CommandDescriptor, ServiceDescriptor
 
 from .error import RunnerError
 
