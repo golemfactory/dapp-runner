@@ -201,9 +201,7 @@ class DappDescriptor(BaseDescriptor["DappDescriptor"]):
                 and self.payloads[node.payload].runtime == PAYLOAD_RUNTIME_VM
                 and VM_PAYLOAD_CAPS_KWARG not in self.payloads[node.payload].params
             ):
-                self.payloads[node.payload].params[VM_PAYLOAD_CAPS_KWARG] = [
-                    vm.VM_CAPS_VPN
-                ]
+                self.payloads[node.payload].params[VM_PAYLOAD_CAPS_KWARG] = [vm.VM_CAPS_VPN]
 
     def __implicit_manifest_support(self):
         """Add `manifest-support` capability to `vm/manifest` payloads ."""
@@ -230,25 +228,20 @@ class DappDescriptor(BaseDescriptor["DappDescriptor"]):
                 for depends_name in service.depends_on:
                     if depends_name not in self.nodes:
                         raise DescriptorError(
-                            f'Unmet `depends_on`: "{depends_name}"'
-                            f' in service: "{name}".'
+                            f'Unmet `depends_on`: "{depends_name}"' f' in service: "{name}".'
                         )
                     self._dependency_graph.add_edge(name, depends_name)
             else:
                 self._dependency_graph.add_edge(DEPENDENCY_ROOT, name)
 
         if not networkx.is_directed_acyclic_graph(self._dependency_graph):
-            raise DescriptorError(
-                "Service definition contains a circular `depends_on`."
-            )
+            raise DescriptorError("Service definition contains a circular `depends_on`.")
 
     def nodes_prioritized(self) -> List[Tuple[str, ServiceDescriptor]]:
         """Get a dict-items-like list of services, ordered by dependencies."""
         return [
             (name, self.nodes[name])
-            for name in reversed(
-                list(networkx.topological_sort(self._dependency_graph))
-            )
+            for name in reversed(list(networkx.topological_sort(self._dependency_graph)))
             if name != DEPENDENCY_ROOT
         ]
 

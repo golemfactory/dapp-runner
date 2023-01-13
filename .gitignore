@@ -54,6 +54,9 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 
+# goth tests
+tests/goth_tests/assets/
+
 # Translations
 *.mo
 *.pot
@@ -100,3 +103,6 @@ dmypy.json
 
 # liccheck
 .requirements.txt
+
+# local
+temp/

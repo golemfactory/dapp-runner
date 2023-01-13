@@ -1,4 +1,4 @@
-"""Pytest configuration file containing the utilities for Dapp Runner tests."""
+"""Pytest configuration file containing the utilities for Dapp Runner unit tests."""
 import asyncio
 
 import pytest

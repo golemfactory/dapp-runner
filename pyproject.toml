@@ -31,9 +31,9 @@ secondary = true
 python = "^3.8"
 
 appdirs = "^1.4"
-click = "^8.1"
+click = "^7.0"
 dpath = "^2.0"
-pyyaml = "^6.0"
+pyyaml = "^5.0"
 shortuuid = "^1.0"
 ansicolors = "^1.1.8"
 networkx = "^2.8"
@@ -44,7 +44,7 @@ setuptools = "*"  # implicitly required by liccehck
 pip = "*"  # implicitly required by liccehck
 
 autoflake = "^1"
-black = "^22.1"
+black = "^21.0b0"
 flake8 = "^5"
 flake8-docstrings = "^1.6"
 Flake8-pyproject = "^1.2.2"
@@ -56,6 +56,8 @@ pytest-cov = "^3.0.0"
 liccheck = "^0.7.2"
 pytest-mock = "^3.10.0"
 isort = "^5.11.4"
+goth = "^0.14.0"
+aioconsole = "^0.5.1"
 
 [tool.poetry.scripts]
 dapp-runner = "dapp_runner.__main__:_cli"
@@ -76,6 +78,8 @@ _format_isort = "isort ."
 _format_black = "black ."
 tests = {sequence = ["tests_unit"], help = "Run all available tests"}
 tests_unit = {cmd = "pytest --cov --cov-report html --cov-report term -sv tests/unit", help = "Run only unit tests"}
+goth-assets = "python -m goth create-assets tests/goth_tests/assets"
+tests_integration = "pytest -svx tests/goth_tests --disable-pytest-warnings --config-override docker-compose.build-environment.use-prerelease=true --config-path tests/goth_tests/assets/goth-config-testing.yml --ssh-verify-connection"
 
 [tool.liccheck]
 authorized_licenses = [
@@ -108,7 +112,7 @@ remove-all-unused-imports = true
 ignore-init-module-imports = true
 
 [tool.flake8]
-max-line-length = 88
+max-line-length = 100
 extend-ignore = [
     "E203", # See https://github.com/PyCQA/pycodestyle/issues/373
     "E231", # black ignores this rule when formatting
@@ -125,6 +129,7 @@ known_golem = "goth, yapapi, ya_activity, ya_market, ya_net, ya_payment"
 sections = ["FUTURE", "STDLIB", "THIRDPARTY", "GOLEM", "FIRSTPARTY", "LOCALFOLDER"]
 
 [tool.black]
+line-length = 100
 target-version = ['py38']
 
 [tool.pytest.ini_options]

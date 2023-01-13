@@ -30,14 +30,10 @@ class BaseDescriptor(Generic[DescriptorType]):
             else:
                 return value_type(value)
         except Exception as e:
-            raise DescriptorError(
-                f"{cls.__name__}.{desc}: {e.__class__.__name__}: {str(e)}"
-            )
+            raise DescriptorError(f"{cls.__name__}.{desc}: {e.__class__.__name__}: {str(e)}")
 
     @classmethod
-    def _load_dict(
-        cls, f: Field, field_type, descriptor_value: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _load_dict(cls, f: Field, field_type, descriptor_value: Dict[str, Any]) -> Dict[str, Any]:
         try:
             entry_type = getattr(field_type, "__args__", None)[1]  # type: ignore [index] # noqa
         except (TypeError, IndexError):
@@ -102,9 +98,7 @@ class BaseDescriptor(Generic[DescriptorType]):
             )
 
     @classmethod
-    def load(
-        cls: Type[DescriptorType], descriptor_dict: Dict[str, Any]
-    ) -> DescriptorType:
+    def load(cls: Type[DescriptorType], descriptor_dict: Dict[str, Any]) -> DescriptorType:
         """Create a new descriptor object from its dictionary representation."""
         resolved_kwargs: Dict[str, Any] = {}
         for f in fields(cls):
@@ -122,7 +116,5 @@ class BaseDescriptor(Generic[DescriptorType]):
 
         unexpected_keys = set(descriptor_dict.keys()) - set(f.name for f in fields(cls))
         if unexpected_keys:
-            raise DescriptorError(
-                f"Unexpected keys: `{unexpected_keys}` for `{cls.__name__}`"
-            )
+            raise DescriptorError(f"Unexpected keys: `{unexpected_keys}` for `{cls.__name__}`")
         return cls(**resolved_kwargs)

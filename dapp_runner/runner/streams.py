@@ -64,9 +64,7 @@ class RunnerStreamer:
         if runner_queue not in self._streams:
             self._init_queue(runner_queue)
 
-        runner_stream: RunnerStream[Any] = RunnerStream(
-            asyncio.Queue(), stream, process_callback
-        )
+        runner_stream: RunnerStream[Any] = RunnerStream(asyncio.Queue(), stream, process_callback)
         self._streams[runner_queue].append(runner_stream)
         self.add_task(runner_stream.update())
 

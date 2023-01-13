@@ -135,9 +135,7 @@ async def get_service(
 
     if desc.http_proxy:
         if len(desc.http_proxy.ports) > 1:
-            raise NotImplementedError(
-                "Multiple port mappings are not currently supported."
-            )
+            raise NotImplementedError("Multiple port mappings are not currently supported.")
 
         port_mapping = desc.http_proxy.ports[0]
         service_instance_params["remote_port"] = port_mapping.remote_port
