@@ -258,9 +258,7 @@ class Runner:
     def _get_app_state_from_nodes(self) -> ServiceState:
         """Return general application state based on all instances states."""
         # Collect nested node states into simple unique collection of state values
-        all_states = set(
-            state for node in self.dapp_state.values() for state in node.values()
-        )
+        all_states = set(state for node in self.dapp_state.values() for state in node.values())
 
         # If we want dapp to be running handle other states as starting
         if self._desired_app_state == ServiceState.running:
