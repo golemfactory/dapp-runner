@@ -25,9 +25,7 @@ def get_free_port(range_start: int = 8080, range_end: int = 9090) -> int:
             except OSError:
                 pass
 
-    raise RuntimeError(
-        f"No free ports found. range_start={range_start}, range_end={range_end}"
-    )
+    raise RuntimeError(f"No free ports found. range_start={range_start}, range_end={range_end}")
 
 
 def _print_env_info(golem: Golem):

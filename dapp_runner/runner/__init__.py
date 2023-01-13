@@ -10,12 +10,7 @@ from typing import Optional, TextIO
 
 from colors import cyan, green, magenta
 
-from dapp_runner._util import (
-    _print_env_info,
-    cancel_and_await_tasks,
-    json_encoder,
-    utcnow,
-)
+from dapp_runner._util import _print_env_info, cancel_and_await_tasks, json_encoder, utcnow
 from dapp_runner.descriptor import Config, DappDescriptor, DescriptorError
 from dapp_runner.log import enable_logger
 
@@ -33,9 +28,7 @@ def _running_time_elapsed(
     time_started: Optional[datetime],
     max_running_time: Optional[timedelta],
 ) -> bool:
-    return bool(
-        time_started and max_running_time and utcnow() > time_started + max_running_time
-    )
+    return bool(time_started and max_running_time and utcnow() > time_started + max_running_time)
 
 
 async def _run_app(
@@ -62,9 +55,7 @@ async def _run_app(
     )
     streamer.register_stream(r.data_queue, data_f, lambda msg: json.dumps(msg))
     if commands_f:
-        streamer.add_task(
-            feed_from_file(r.command_queue, commands_f, lambda msg: json.loads(msg))
-        )
+        streamer.add_task(feed_from_file(r.command_queue, commands_f, lambda msg: json.loads(msg)))
 
     if not silent:
         streamer.register_stream(
@@ -72,15 +63,11 @@ async def _run_app(
             sys.stdout,
             lambda msg: cyan(json.dumps(msg, default=json_encoder)),
         )
-        streamer.register_stream(
-            r.data_queue, sys.stdout, lambda msg: magenta(json.dumps(msg))
-        )
+        streamer.register_stream(r.data_queue, sys.stdout, lambda msg: magenta(json.dumps(msg)))
 
     assert r.commissioning_time  # sanity check for mypy
 
-    startup_timeout = timedelta(
-        seconds=config.limits.startup_timeout or DEFAULT_STARTUP_TIMEOUT
-    )
+    startup_timeout = timedelta(seconds=config.limits.startup_timeout or DEFAULT_STARTUP_TIMEOUT)
 
     max_running_time: Optional[timedelta] = None
     if config.limits.max_running_time:
@@ -100,16 +87,12 @@ async def _run_app(
             await asyncio.sleep(1)
 
         if not r.dapp_started:
-            raise Exception(
-                f"Failed to start instances before {startup_timeout} elapsed."
-            )
+            raise Exception(f"Failed to start instances before {startup_timeout} elapsed.")
 
         time_started = utcnow()
         logger.info("Application started.")
 
-        while r.dapp_started and not _running_time_elapsed(
-            time_started, max_running_time
-        ):
+        while r.dapp_started and not _running_time_elapsed(time_started, max_running_time):
             await asyncio.sleep(1)
     finally:
         if _running_time_elapsed(time_started, max_running_time):
@@ -140,14 +123,10 @@ def start_runner(
         data_f = stack.enter_context(open(str(data), "w", 1))
 
         if stdout:
-            stack.enter_context(
-                redirect_stdout(stack.enter_context(open(str(stdout), "w", 1)))
-            )
+            stack.enter_context(redirect_stdout(stack.enter_context(open(str(stdout), "w", 1))))
 
         if stderr:
-            stack.enter_context(
-                redirect_stderr(stack.enter_context(open(str(stderr), "w", 1)))
-            )
+            stack.enter_context(redirect_stderr(stack.enter_context(open(str(stderr), "w", 1))))
 
         enable_logger(
             log_file=str(log.resolve()),
@@ -155,9 +134,7 @@ def start_runner(
             console_log_level=logging.DEBUG if debug else logging.INFO,
         )
 
-        commands_f = (
-            stack.enter_context(open(str(commands), "w+", 1)) if commands else None
-        )
+        commands_f = stack.enter_context(open(str(commands), "w+", 1)) if commands else None
 
         loop = asyncio.get_event_loop()
         task = loop.create_task(

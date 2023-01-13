@@ -26,9 +26,7 @@ class YagnaConfig(BaseDescriptor["YagnaConfig"]):
     subnet_tag: Optional[str]
     api_url: Optional[str] = None
     gsb_url: Optional[str] = None
-    app_key: Optional[str] = field(
-        metadata={"factory": __app_key__factory}, default=None
-    )
+    app_key: Optional[str] = field(metadata={"factory": __app_key__factory}, default=None)
 
 
 @dataclass
