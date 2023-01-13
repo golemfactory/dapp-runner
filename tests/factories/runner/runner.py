@@ -29,9 +29,7 @@ class RunnerFactory(factory.Factory):
 def mock_runner(**kwargs):
     """Get a mostly mocked out Runner instance."""
 
-    with (
-            mock.patch("yapapi.golem.Golem._get_new_engine", mock.Mock()),
-            mock.patch("yapapi.golem.Golem.start", mock.AsyncMock()),
-            mock.patch("yapapi.golem.Golem.stop", mock.AsyncMock())
-    ):
-        yield RunnerFactory(**kwargs)
+    with mock.patch("yapapi.golem.Golem._get_new_engine", mock.Mock()):
+        with mock.patch("yapapi.golem.Golem.start", mock.AsyncMock()):
+            with mock.patch("yapapi.golem.Golem.stop", mock.AsyncMock()):
+                yield RunnerFactory(**kwargs)
