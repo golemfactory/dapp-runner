@@ -1,7 +1,11 @@
 """Test factories for Dapp Runner's Dapp descriptor."""
 import factory
 
-from dapp_runner.descriptor.dapp import DappDescriptor, PayloadDescriptor, ServiceDescriptor
+from dapp_runner.descriptor.dapp import (
+    DappDescriptor,
+    PayloadDescriptor,
+    ServiceDescriptor,
+)
 
 
 class PayloadDescriptorFactory(factory.Factory):

@@ -116,7 +116,7 @@ extend-ignore = [
     "D105", # No docs for magic method
     "D104", # No docs for public package
     "D107", # No docs for __init__
-    "D202", # We prefere whitelines after docstrings
+    "D202", # We prefer whitelines after docstrings
 ]
 
 [tool.isort]

@@ -1,14 +1,18 @@
 """Test `Runner` factories."""
 import contextlib
-import factory
 from unittest import mock
 
-from yapapi.services import ServiceState
-from dapp_runner.runner import Runner
+import factory
 
+from yapapi.services import ServiceState
+
+from dapp_runner.runner import Runner
 from tests.factories.descriptor import ConfigFactory, DappDescriptorFactory
 
+
 class RunnerFactory(factory.Factory):
+    """Test factory for the dapp-runner's `Runner`."""
+
     class Meta:  # noqa
         model = Runner
 
@@ -19,6 +23,7 @@ class RunnerFactory(factory.Factory):
     def desired_app_state(obj, _, extracted: ServiceState, **__):  # noqa
         if extracted:
             obj._desired_app_state = extracted
+
 
 @contextlib.contextmanager
 def mock_runner(**kwargs):

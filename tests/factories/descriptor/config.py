@@ -1,7 +1,7 @@
 """Test factories for Dapp Runner's Config descriptor."""
 import factory
 
-from dapp_runner.descriptor.config import Config, YagnaConfig, PaymentConfig
+from dapp_runner.descriptor.config import Config, PaymentConfig, YagnaConfig
 
 
 class YagnaConfigFactory(factory.Factory):

@@ -7,7 +7,6 @@ import pytest
 from yapapi.services import ServiceState
 
 from dapp_runner.runner import Runner, _running_time_elapsed  # noqa
-
 from tests.factories.runner import mock_runner
 
 
@@ -92,6 +91,7 @@ async def test_runner_app_state_starting(nodes_states):
         with mock_runner(dapp__node_count=2, desired_app_state=ServiceState.running) as runner:
             assert runner._get_app_state_from_nodes() == ServiceState.starting
 
+
 @pytest.mark.parametrize(
     "nodes_states",
     (
@@ -123,6 +123,7 @@ async def test_runner_app_state_stopping(nodes_states):
     with mock.patch("dapp_runner.runner.Runner.dapp_state", nodes_states):
         with mock_runner(dapp__node_count=2, desired_app_state=ServiceState.terminated) as runner:
             assert runner._get_app_state_from_nodes() == ServiceState.stopping
+
 
 async def test_runner_app_state_running():
     """Test app state reporting while Runner have all services running."""
