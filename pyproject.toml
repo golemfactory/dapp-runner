@@ -123,6 +123,7 @@ profile = "black"
 py_version = 38
 known_golem = "goth, yapapi, ya_activity, ya_market, ya_net, ya_payment"
 sections = ["FUTURE", "STDLIB", "THIRDPARTY", "GOLEM", "FIRSTPARTY", "LOCALFOLDER"]
+line_length = 100
 
 [tool.black]
 line-length = 100
