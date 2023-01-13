@@ -1,6 +1,5 @@
 """Tests for `dapp_runner.runner`."""
 from datetime import datetime, timedelta, timezone
-from typing import Dict
 from unittest import mock
 
 import pytest
@@ -8,8 +7,7 @@ from yapapi.services import ServiceState
 
 from dapp_runner.runner import Runner, _running_time_elapsed  # noqa
 
-from tests.factories.descriptor.config import ConfigFactory
-from tests.factories.descriptor.dapp import DappDescriptorFactory
+from tests.factories.runner import mock_runner
 
 
 def _some_datetime(offset: int = 0):
@@ -33,23 +31,15 @@ def test_running_time_elapsed(time_started, max_running_time, expected):
 
 
 @pytest.fixture(scope="function")
-def runner(mocker):
+def runner():
     """Mostly mocked out Runner instance."""
-
-    mocker.patch("yapapi.golem.Golem._get_new_engine", mock.Mock())
-    mocker.patch("yapapi.golem.Golem.start", mock.AsyncMock())
-    mocker.patch("yapapi.golem.Golem.stop", mock.AsyncMock())
-
-    runner = Runner(
-        config=ConfigFactory(),
-        dapp=DappDescriptorFactory(),
-    )
-
-    return runner
+    with mock_runner() as runner:
+        yield runner
 
 
 async def test_runner_desired_state(runner):
     """Test to check if desired app state is properly managed with app lifetime."""
+
     assert runner._desired_app_state == ServiceState.pending
 
     await runner.start()
@@ -63,16 +53,9 @@ async def test_runner_desired_state(runner):
 
 async def test_runner_app_state_pending():
     """Test app state reporting at initial state of Runner."""
-    dapp_node_count = 2
-    desired_app_state = ServiceState.pending
-    nodes_states: Dict[str, Dict[int, ServiceState]] = {}
 
-    assert (
-        Runner._get_app_state_from_nodes(
-            dapp_node_count, desired_app_state, nodes_states
-        )
-        == ServiceState.pending
-    )
+    with mock_runner(dapp__node_count=2, desired_app_state=ServiceState.pending) as runner:
+        assert runner._get_app_state_from_nodes() == ServiceState.pending
 
 
 @pytest.mark.parametrize(
@@ -103,16 +86,10 @@ async def test_runner_app_state_pending():
 )
 async def test_runner_app_state_starting(nodes_states):
     """Test app state reporting while Runner is starting its services."""
-    dapp_node_count = 2
-    desired_app_state = ServiceState.running
 
-    assert (
-        Runner._get_app_state_from_nodes(
-            dapp_node_count, desired_app_state, nodes_states
-        )
-        == ServiceState.starting
-    )
-
+    with mock.patch("dapp_runner.runner.Runner.dapp_state", nodes_states):
+        with mock_runner(dapp__node_count=2, desired_app_state=ServiceState.running) as runner:
+            assert runner._get_app_state_from_nodes() == ServiceState.starting
 
 @pytest.mark.parametrize(
     "nodes_states",
@@ -141,34 +118,22 @@ async def test_runner_app_state_starting(nodes_states):
 )
 async def test_runner_app_state_stopping(nodes_states):
     """Test app state reporting while Runner is stopping its services."""
-    dapp_node_count = 2
-    desired_app_state = ServiceState.terminated
 
-    assert (
-        Runner._get_app_state_from_nodes(
-            dapp_node_count, desired_app_state, nodes_states
-        )
-        == ServiceState.stopping
-    )
-
+    with mock.patch("dapp_runner.runner.Runner.dapp_state", nodes_states):
+        with mock_runner(dapp__node_count=2, desired_app_state=ServiceState.terminated) as runner:
+            assert runner._get_app_state_from_nodes() == ServiceState.stopping
 
 async def test_runner_app_state_running():
     """Test app state reporting while Runner have all services running."""
-    dapp_node_count = 2
-    desired_app_state = ServiceState.running
+
     nodes_states = {
         "foo": {0: ServiceState.running},
         "bar": {0: ServiceState.running},
     }
 
-    assert (
-        Runner._get_app_state_from_nodes(
-            dapp_node_count,
-            desired_app_state,
-            nodes_states,
-        )
-        == ServiceState.running
-    )
+    with mock.patch("dapp_runner.runner.Runner.dapp_state", nodes_states):
+        with mock_runner(dapp__node_count=2, desired_app_state=ServiceState.running) as runner:
+            assert runner._get_app_state_from_nodes() == ServiceState.running
 
 
 @pytest.mark.parametrize(
@@ -183,12 +148,7 @@ async def test_runner_app_state_running():
 )
 async def test_runner_app_state_terminated(nodes_states):
     """Test app state reporting while Runner have all services terminated."""
-    dapp_node_count = 2
-    desired_app_state = ServiceState.terminated
 
-    assert (
-        Runner._get_app_state_from_nodes(
-            dapp_node_count, desired_app_state, nodes_states
-        )
-        == ServiceState.terminated
-    )
+    with mock.patch("dapp_runner.runner.Runner.dapp_state", nodes_states):
+        with mock_runner(dapp__node_count=2, desired_app_state=ServiceState.terminated) as runner:
+            assert runner._get_app_state_from_nodes() == ServiceState.terminated
