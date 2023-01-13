@@ -23,8 +23,6 @@ async def feed_from_file(
                     msg = process_callback(msg)
                 await q.put(msg)
             except Exception as e:
-                logger.error(
-                    "Exception while processing a message: %s, msg: %s", e, msg
-                )
+                logger.error("Exception while processing a message: %s, msg: %s", e, msg)
         else:
             await asyncio.sleep(FILE_READ_INTERVAL)

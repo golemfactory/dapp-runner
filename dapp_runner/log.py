@@ -42,9 +42,7 @@ def enable_logger(
     root.addHandler(console_handler)
 
     if log_file:
-        file_handler = logging.FileHandler(
-            filename=log_file, mode="w", encoding="utf-8"
-        )
+        file_handler = logging.FileHandler(filename=log_file, mode="w", encoding="utf-8")
         file_handler.setFormatter(formatter)
         file_handler.setLevel(file_log_level)
 

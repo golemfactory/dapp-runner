@@ -13,18 +13,9 @@ from yapapi.network import Network
 from yapapi.payload import Payload
 from yapapi.services import Cluster, Service, ServiceState
 
-from dapp_runner._util import (
-    cancel_and_await_tasks,
-    get_free_port,
-    utcnow,
-    utcnow_iso_str,
-)
+from dapp_runner._util import cancel_and_await_tasks, get_free_port, utcnow, utcnow_iso_str
 from dapp_runner.descriptor import Config, DappDescriptor
-from dapp_runner.descriptor.dapp import (
-    CommandDescriptor,
-    PortMapping,
-    ServiceDescriptor,
-)
+from dapp_runner.descriptor.dapp import CommandDescriptor, PortMapping, ServiceDescriptor
 
 from .payload import get_payload
 from .service import DappService, get_service
@@ -97,9 +88,7 @@ class Runner:
         for name, desc in self.dapp.payloads.items():
             self._payloads[name] = await get_payload(desc)
 
-    async def _start_local_http_proxy(
-        self, name: str, cluster: Cluster, port_mapping: PortMapping
-    ):
+    async def _start_local_http_proxy(self, name: str, cluster: Cluster, port_mapping: PortMapping):
         # wait until the service is running before starting the proxy
         while not self._is_cluster_state(name, ServiceState.running):
             await asyncio.sleep(DEPENDENCY_WAIT_INTERVAL)
@@ -109,13 +98,9 @@ class Runner:
         await proxy.run()
 
         self._http_proxies[name] = proxy
-        self.data_queue.put_nowait(
-            {name: {LOCAL_HTTP_PROXY_DATA_KEY: f"http://localhost:{port}"}}
-        )
+        self.data_queue.put_nowait({name: {LOCAL_HTTP_PROXY_DATA_KEY: f"http://localhost:{port}"}})
 
-    async def _start_local_tcp_proxy(
-        self, name: str, service: Service, port_mapping: PortMapping
-    ):
+    async def _start_local_tcp_proxy(self, name: str, service: Service, port_mapping: PortMapping):
         # wait until the service is running before starting the proxy
         while not self._is_cluster_state(name, ServiceState.running):
             await asyncio.sleep(DEPENDENCY_WAIT_INTERVAL)
@@ -125,13 +110,9 @@ class Runner:
         await proxy.run_server(service, port_mapping.remote_port)
 
         self._tcp_proxies[name] = proxy
-        self.data_queue.put_nowait(
-            {name: {LOCAL_TCP_PROXY_DATA_KEY: f"localhost:{port}"}}
-        )
+        self.data_queue.put_nowait({name: {LOCAL_TCP_PROXY_DATA_KEY: f"localhost:{port}"}})
 
-    async def _start_service(
-        self, service_name: str, service_descriptor: ServiceDescriptor
-    ):
+    async def _start_service(self, service_name: str, service_descriptor: ServiceDescriptor):
         # if this service depends on another, wait until the dependency is up
         if service_descriptor.depends_on:
             for depends_name in service_descriptor.depends_on:
@@ -140,9 +121,7 @@ class Runner:
                 ):
                     await asyncio.sleep(DEPENDENCY_WAIT_INTERVAL)
 
-        logger.debug(
-            "Starting service: %s, descriptor: %s", service_name, service_descriptor
-        )
+        logger.debug("Starting service: %s, descriptor: %s", service_name, service_descriptor)
         cluster_class, run_params = await get_service(
             service_name, service_descriptor, self._payloads, self._networks
         )
@@ -153,9 +132,7 @@ class Runner:
         if service_descriptor.http_proxy:
             for port in service_descriptor.http_proxy.ports:
                 self._tasks.append(
-                    asyncio.create_task(
-                        self._start_local_http_proxy(service_name, cluster, port)
-                    )
+                    asyncio.create_task(self._start_local_http_proxy(service_name, cluster, port))
                 )
 
         if service_descriptor.tcp_proxy:
@@ -306,16 +283,12 @@ class Runner:
         # In other cases return pending
         return ServiceState.pending
 
-    async def _listen_data_queue(
-        self, cluster_name: str, idx: int, service: DappService
-    ):
+    async def _listen_data_queue(self, cluster_name: str, idx: int, service: DappService):
         """Pass data messages from the instance to the Runner's queue."""
         while True:
             msg = await service.data_queue.get()
 
-            self.data_queue.put_nowait(
-                {cluster_name: {idx: self._process_data_message(msg)}}
-            )
+            self.data_queue.put_nowait({cluster_name: {idx: self._process_data_message(msg)}})
 
     @staticmethod
     def _process_data_message(message: List[CommandExecuted]) -> List[Dict]:

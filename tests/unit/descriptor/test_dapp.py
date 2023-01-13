@@ -270,9 +270,7 @@ def _test_proxy_descriptor(
         ),
     ],
 )
-def test_http_proxy_descriptor(
-    test_utils, descriptor_dict, port_mappings, error, implicit_vpn
-):
+def test_http_proxy_descriptor(test_utils, descriptor_dict, port_mappings, error, implicit_vpn):
     """Test whether the `http_proxy` descriptor is correctly interpreted."""
     _test_proxy_descriptor(
         "http_proxy",
@@ -366,9 +364,7 @@ def test_http_proxy_descriptor(
         ),
     ],
 )
-def test_tcp_proxy_descriptor(
-    test_utils, descriptor_dict, port_mappings, error, implicit_vpn
-):
+def test_tcp_proxy_descriptor(test_utils, descriptor_dict, port_mappings, error, implicit_vpn):
     """Test whether the `tcp_proxy` descriptor is correctly interpreted."""
     _test_proxy_descriptor(
         "tcp_proxy",
@@ -578,9 +574,7 @@ def test_service_init(test_utils, descriptor_dict, expected_init, error):
         (
             {
                 "payloads": {"foo": {"runtime": "vm"}},
-                "nodes": {
-                    "http": {"payload": "foo", "init": [], "depends_on": ["bar"]}
-                },
+                "nodes": {"http": {"payload": "foo", "init": [], "depends_on": ["bar"]}},
             },
             DescriptorError('Unmet `depends_on`: "bar" in service: "http"'),
             [],
