@@ -4,6 +4,7 @@ from typing import Final
 from unittest.mock import Mock
 
 import pytest
+
 from yapapi.ctx import Script, WorkContext
 from yapapi.network import Network
 from yapapi.payload import Payload

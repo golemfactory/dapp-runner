@@ -6,6 +6,7 @@ from typing import Any
 
 import statemachine
 from colors import yellow
+
 from yapapi import Golem
 from yapapi import __version__ as yapapi_version
 

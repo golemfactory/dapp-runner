@@ -31,4 +31,4 @@ jobs:
 
       - run: python -m pip install --upgrade pip
       - run: poetry install
-      - run: poetry run poe unittest
+      - run: poetry run poe tests_unit

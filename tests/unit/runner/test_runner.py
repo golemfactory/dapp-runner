@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from unittest import mock
 
 import pytest
+
 from yapapi.services import ServiceState
 
 from dapp_runner.runner import Runner, _running_time_elapsed  # noqa
