@@ -1,4 +1,4 @@
-"""Goth tests for Simple Service dApp."""
+"""Test Simple Service dApp."""
 import logging
 import os
 import signal
@@ -6,19 +6,39 @@ import signal
 from goth.assertions import EventStream
 from goth.runner.probe import RequestorProbe
 
+from tests.goth_tests.utils import assert_strings_in_events
+
 logger = logging.getLogger("goth.test.test")
 
 
-async def assert_states(events: EventStream) -> str:
-    """State comparator."""
-    states = (state for state in ["pending", "starting", "running", "stopping", "terminated"])
-    expected_state = next(states, None)
-    async for log_line in events:
-        if expected_state is not None and expected_state in log_line:
-            logger.info(f"found {expected_state} in {log_line}")
-            expected_state = next(states, None)
-    assert expected_state is None, f"{[state for state in expected_state]} were not found"
-    return "Found all expected states"
+async def assert_app_states(events: EventStream) -> str:
+    """Compare app states."""
+    return await assert_strings_in_events(
+        events,
+        [
+            '"app": "pending"',
+            '"app": "starting"',
+            '"app": "running"',
+            '"app": "stopping"',
+            '"app": "terminated"',
+        ],
+        "Found all expected Simple Service app states",
+    )
+
+
+async def assert_service_node_states(events: EventStream) -> str:
+    """Compare simple service node states."""
+    return await assert_strings_in_events(
+        events,
+        [
+            '{"simple-service": {"0": "pending"}}',
+            '{"simple-service": {"0": "starting"}}',
+            '{"simple-service": {"0": "running"}}',
+            '{"simple-service": {"0": "stopping"}}',
+            '{"simple-service": {"0": "terminated"}}',
+        ],
+        "Found all expected Simple Service node states",
+    )
 
 
 async def test_simple_service(goth_requestor_probe: RequestorProbe) -> None:
@@ -27,7 +47,8 @@ async def test_simple_service(goth_requestor_probe: RequestorProbe) -> None:
         "dapp-runner start --config configs/goth.yaml dapp-store/apps/simple-service.yaml",
         env=os.environ,
     ) as (_cmd_task, cmd_monitor, process_monitor):
-        cmd_monitor.add_assertion(assert_states)
+        cmd_monitor.add_assertion(assert_app_states)
+        cmd_monitor.add_assertion(assert_service_node_states)
         await cmd_monitor.wait_for_pattern(
             ".*Starting app: A simple, non-networked service.*", timeout=10
         )
