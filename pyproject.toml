@@ -55,6 +55,7 @@ pytest-asyncio = "^0.18.3"
 pytest-cov = "^3.0.0"
 liccheck = "^0.7.2"
 pytest-mock = "^3.10.0"
+factory-boy = "^3.2.1"
 isort = "^5.11.4"
 
 [tool.poetry.scripts]
@@ -115,7 +116,7 @@ extend-ignore = [
     "D105", # No docs for magic method
     "D104", # No docs for public package
     "D107", # No docs for __init__
-    "D202", # We prefere whitelines after docstrings
+    "D202", # We prefer whitelines after docstrings
 ]
 
 [tool.isort]
