@@ -1,7 +1,10 @@
 """Pytest configuration file containing the utilities for Dapp Runner tests."""
 import asyncio
+from unittest import mock
 
 import pytest
+
+from tests.factories.runner import RunnerFactory
 
 
 class Utils:
@@ -50,3 +53,17 @@ def event_loop():
     yield loop
 
     loop.close()
+
+
+@pytest.fixture
+def mock_runner(mocker):
+    """Get a mostly mocked out Runner instance."""
+
+    def _mock_runner(**kwargs):
+        mocker.patch("yapapi.golem.Golem._get_new_engine", mock.Mock())
+        mocker.patch("yapapi.golem.Golem.start", mock.AsyncMock())
+        mocker.patch("yapapi.golem.Golem.stop", mock.AsyncMock())
+
+        return RunnerFactory(**kwargs)
+
+    return _mock_runner

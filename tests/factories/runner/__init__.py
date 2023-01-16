@@ -1,6 +1,3 @@
-from .runner import RunnerFactory, mock_runner
+from .runner import RunnerFactory
 
-__all__ = (
-    "mock_runner",
-    "RunnerFactory",
-)
+__all__ = ("RunnerFactory",)
