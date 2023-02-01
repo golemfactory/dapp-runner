@@ -2,7 +2,6 @@ import asyncio
 import socket
 from asyncio import Task
 from datetime import datetime, timezone
-from functools import lru_cache
 from typing import Any, Generator
 
 import statemachine
@@ -11,36 +10,46 @@ from colors import yellow
 from yapapi import Golem
 from yapapi import __version__ as yapapi_version
 
+from dapp_runner.metaclasses import SingletonMeta
 
-@lru_cache(maxsize=1)
-def _free_port_generator(
-    range_start: int = 8080, range_end: int = 9090
-) -> Generator[int, None, None]:
-    """Yield the first available port on localhost within the specified range.
 
-    The range is inclusive on both sides (i.e. `range_end` will be included).
-    Raises `RuntimeError` when no free port could be found.
+class FreePortSingleton(metaclass=SingletonMeta):
+    """Provide free port to reserve by dapp-runner.
 
-    `lru_cache` prevents race condition on single dapp-runner instance when reserving free ports.
+    Usage of singleton prevents race condition on single dapp-runner instance
+    when reserving free ports.
     """
-    return_port = None
-    for port in range(range_start, range_end + 1):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            try:
-                s.bind(("", port))
-                return_port = port
-            except OSError:
-                pass
-        if return_port is not None:
-            yield return_port
-            return_port = None
-            
-    raise RuntimeError(f"No free ports found. range_start={range_start}, range_end={range_end}")
 
+    _generator: Generator[int, None, None]
 
-def get_free_port() -> int:
-    """Get next available port on localhost from _free_port_generator."""
-    return next(_free_port_generator())
+    def __init__(self, range_start: int = 8080, range_end: int = 9090):
+        self._generator = self._free_port_generator(range_start, range_end)
+
+    def _free_port_generator(
+        self, range_start: int = 8080, range_end: int = 9090
+    ) -> Generator[int, None, None]:
+        """Yield the first available port on localhost within the specified range.
+
+        The range is inclusive on both sides (i.e. `range_end` will be included).
+        Raises `RuntimeError` when no free port could be found.
+        """
+        return_port = None
+        for port in range(range_start, range_end + 1):
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                try:
+                    s.bind(("", port))
+                    return_port = port
+                except OSError:
+                    pass
+            if return_port is not None:
+                yield return_port
+                return_port = None
+
+        raise RuntimeError(f"No free ports found. range_start={range_start}, range_end={range_end}")
+
+    def get_free_port(self) -> int:
+        """Get next available port on localhost."""
+        return next(self._generator)
 
 
 def _print_env_info(golem: Golem):
