@@ -18,6 +18,8 @@ class FreePortSingleton(metaclass=SingletonMeta):
 
     Usage of singleton prevents race condition on single dapp-runner instance
     when reserving free ports.
+    This is temporary solution until issue https://github.com/golemfactory/yapapi/issues/1098
+    is resolved and proper fix can be implemented.
     """
 
     _generator: Generator[int, None, None]
