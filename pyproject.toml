@@ -31,9 +31,9 @@ secondary = true
 python = "^3.8"
 
 appdirs = "^1.4"
-click = "^7.0"  # requireis bump to goth's dependencies https://github.com/golemfactory/goth/issues/605
+click = "^7.0"  # requires bump to goth's dependencies https://github.com/golemfactory/goth/issues/605
 dpath = "^2.0"
-pyyaml = "^5.0"  # requireis bump to goth's dependencies https://github.com/golemfactory/goth/issues/605
+pyyaml = "^5.0"  # requires bump to goth's dependencies https://github.com/golemfactory/goth/issues/605
 shortuuid = "^1.0"
 ansicolors = "^1.1.8"
 networkx = "^2.8"
@@ -44,7 +44,7 @@ setuptools = "*"  # implicitly required by liccehck
 pip = "*"  # implicitly required by liccehck
 
 autoflake = "^1"
-black = "^21.0b0"  # requireis bump to goth's dependencies https://github.com/golemfactory/goth/issues/605
+black = "^21.0b0"  # requires bump to goth's dependencies https://github.com/golemfactory/goth/issues/605
 flake8 = "^5"
 flake8-docstrings = "^1.6"
 Flake8-pyproject = "^1.2.2"
