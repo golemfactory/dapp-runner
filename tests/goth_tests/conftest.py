@@ -3,6 +3,7 @@ import asyncio
 from datetime import datetime
 from pathlib import Path
 from typing import AsyncGenerator, Generator, List, cast
+from uuid import uuid4
 
 import pytest
 import yaml
@@ -88,7 +89,7 @@ def goth_config(
     """Apply changes to goth config."""
     # As `goth.configuration.load_yaml` dose not support overriding values inside a list
     # we are creating new config file with modifications to lists
-    altered_goth_config_path = goth_config_path.parent / "goth-config-altered.yml"
+    altered_goth_config_path = goth_config_path.parent / f"goth-config-altered-{uuid4()}.yml"
     with open(goth_config_path) as f:
         goth_config_dict = yaml.load(f, yaml.FullLoader)
     for node in goth_config_dict["nodes"]:
