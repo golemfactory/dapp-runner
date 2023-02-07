@@ -31,9 +31,9 @@ secondary = true
 python = "^3.8"
 
 appdirs = "^1.4"
-click = "^8.1"
+click = "^7.0"  # requires bump to goth's dependencies https://github.com/golemfactory/goth/issues/605
 dpath = "^2.0"
-pyyaml = "^6.0"
+pyyaml = "^5.0"  # requires bump to goth's dependencies https://github.com/golemfactory/goth/issues/605
 shortuuid = "^1.0"
 ansicolors = "^1.1.8"
 networkx = "^2.8"
@@ -44,7 +44,7 @@ setuptools = "*"  # implicitly required by liccehck
 pip = "*"  # implicitly required by liccehck
 
 autoflake = "^1"
-black = "^22.1"
+black = "^21.0b0"  # requires bump to goth's dependencies https://github.com/golemfactory/goth/issues/605
 flake8 = "^5"
 flake8-docstrings = "^1.6"
 Flake8-pyproject = "^1.2.2"
@@ -57,6 +57,13 @@ liccheck = "^0.7.2"
 pytest-mock = "^3.10.0"
 factory-boy = "^3.2.1"
 isort = "^5.11.4"
+
+[tool.poetry.group.tests_integration]
+optional = true
+
+[tool.poetry.group.tests_integration.dependencies]
+goth = "^0.14.0"
+requests = "^2.28.2"
 
 [tool.poetry.scripts]
 dapp-runner = "dapp_runner.__main__:_cli"
@@ -77,6 +84,8 @@ _format_isort = "isort ."
 _format_black = "black ."
 tests = {sequence = ["tests_unit"], help = "Run all available tests"}
 tests_unit = {cmd = "pytest --cov --cov-report html --cov-report term -sv tests/unit", help = "Run only unit tests"}
+tests_integration_assets = "python -m goth create-assets tests/goth_tests/assets"
+tests_integration = "pytest -svx tests/goth_tests --disable-pytest-warnings --config-override docker-compose.build-environment.use-prerelease=true --config-path tests/goth_tests/assets/goth-config-testing.yml"
 
 [tool.liccheck]
 authorized_licenses = [
@@ -94,6 +103,7 @@ authorized_licenses = [
   "LGPL-3.0-or-later",
   "GNU Lesser General Public License v3 or later (LGPLv3+)",
   "GNU Lesser General Public License v3 (LGPLv3)",
+  "GNU Library or Lesser General Public License (LGPL)",
   "Python Software Foundation",
   "ISC",
   "ISC License (ISCL)",

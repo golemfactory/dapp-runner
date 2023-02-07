@@ -1,0 +1,8 @@
+yagna:
+  app_key: "$YAGNA_APPKEY"
+  subnet_tag: "goth"
+
+payment:
+  budget: 1.0
+  driver: "erc20"
+  network: "rinkeby"

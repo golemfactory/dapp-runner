@@ -20,7 +20,7 @@ from dapp_runner.runner import start_runner, verify_dapp
 logger = logging.getLogger(__name__)
 
 
-@click.group
+@click.group()
 def _cli():
     pass
 

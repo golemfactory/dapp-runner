@@ -1,0 +1,82 @@
+name: Goth (PR and push)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      # - <your-branch>    # put your branch name here to test it @ GH Actions
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  goth-tests:
+    name: Run integration tests
+    runs-on: [goth, ubuntu-22.04]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: Configure python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'
+
+      - name: Configure poetry
+        uses: Gr1N/setup-poetry@v8
+        with:
+          poetry-version: 1.2.2
+
+      - name: Install dependencies
+        run: |
+          poetry env use python3.8
+          poetry install --with tests_integration
+
+      - name: Disconnect Docker containers from default network
+        continue-on-error: true
+        # related to this issue: https://github.com/moby/moby/issues/23302
+        run: |
+          docker network inspect docker_default
+          sudo apt-get install -y jq
+          docker network inspect docker_default | jq ".[0].Containers | map(.Name)[]" | tee /dev/stderr | xargs --max-args 1 -- docker network disconnect -f docker_default
+
+      - name: Remove Docker containers
+        continue-on-error: true
+        run: docker rm -f $(docker ps -a -q)
+
+      - name: Restart Docker daemon
+        # related to this issue: https://github.com/moby/moby/issues/23302
+        run: sudo systemctl restart docker
+
+      - name: Log in to GitHub Docker repository
+        run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u ${{github.actor}} --password-stdin
+
+      - name: Run test suite
+        env:
+          GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          poetry run poe tests_integration_assets
+          poetry run poe tests_integration
+
+      - name: Upload test logs
+        uses: actions/upload-artifact@v2
+        if: always()
+        with:
+           name: goth-logs
+           path: /tmp/goth-tests/dapp-runner
+
+      # Only relevant for self-hosted runners
+      - name: Remove test logs
+        if: always()
+        run: rm -rf /tmp/goth-tests/dapp-runner
+
+      # Only relevant for self-hosted runners
+      - name: Remove poetry virtual env
+        if: always()
+        # Python version below should agree with the version set up by this job.
+        # In future we'll be able to use the `--all` flag here to remove envs for
+        # all Python versions (https://github.com/python-poetry/poetry/issues/3208).
+        run: poetry env remove python3.8
