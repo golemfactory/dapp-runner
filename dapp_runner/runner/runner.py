@@ -13,7 +13,7 @@ from yapapi.network import Network
 from yapapi.payload import Payload
 from yapapi.services import Cluster, Service, ServiceState
 
-from dapp_runner._util import FreePortSingleton, cancel_and_await_tasks, utcnow, utcnow_iso_str
+from dapp_runner._util import FreePortProvider, cancel_and_await_tasks, utcnow, utcnow_iso_str
 from dapp_runner.descriptor import Config, DappDescriptor
 from dapp_runner.descriptor.dapp import CommandDescriptor, PortMapping, ServiceDescriptor
 
@@ -93,7 +93,7 @@ class Runner:
         while not self._is_cluster_state(name, ServiceState.running):
             await asyncio.sleep(DEPENDENCY_WAIT_INTERVAL)
 
-        port = port_mapping.local_port or FreePortSingleton().get_free_port()
+        port = port_mapping.local_port or FreePortProvider().get_free_port()
         proxy = LocalHttpProxy(cluster, port)
         await proxy.run()
 
@@ -105,7 +105,7 @@ class Runner:
         while not self._is_cluster_state(name, ServiceState.running):
             await asyncio.sleep(DEPENDENCY_WAIT_INTERVAL)
 
-        port = port_mapping.local_port or FreePortSingleton().get_free_port()
+        port = port_mapping.local_port or FreePortProvider().get_free_port()
         proxy = SocketProxy([port])
         await proxy.run_server(service, port_mapping.remote_port)
 

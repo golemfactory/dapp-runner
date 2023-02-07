@@ -1,4 +1,4 @@
-"""Metaclasses module."""
+"""Singleton metaclass module."""
 
 
 from typing import Dict

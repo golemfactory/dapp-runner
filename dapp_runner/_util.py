@@ -10,10 +10,10 @@ from colors import yellow
 from yapapi import Golem
 from yapapi import __version__ as yapapi_version
 
-from dapp_runner.metaclasses import SingletonMeta
+from dapp_runner.singleton import SingletonMeta
 
 
-class FreePortSingleton(metaclass=SingletonMeta):
+class FreePortProvider(metaclass=SingletonMeta):
     """Provide free port to reserve by dapp-runner.
 
     Usage of singleton prevents race condition on single dapp-runner instance
