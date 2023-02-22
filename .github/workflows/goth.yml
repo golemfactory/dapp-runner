@@ -35,7 +35,7 @@ jobs:
       - name: Install dependencies
         run: |
           poetry env use python3.8
-          poetry install --with tests_integration
+          poetry install -vvv --with tests_integration
 
       - name: Disconnect Docker containers from default network
         continue-on-error: true
