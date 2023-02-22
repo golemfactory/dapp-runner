@@ -5,10 +5,12 @@ on:
   push:
     branches:
       - main
+      - b0.*
       # - <your-branch>    # put your branch name here to test it @ GH Actions
   pull_request:
     branches:
       - main
+      - b0.*
 
 jobs:
   goth-tests:
