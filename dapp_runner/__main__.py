@@ -14,7 +14,7 @@ import shortuuid
 
 from dapp_runner import MODULE_AUTHOR, MODULE_NAME
 from dapp_runner.descriptor.parser import load_yamls
-from dapp_runner.log import enable_logger
+from dapp_runner.log import LOG_CHOICES, LOG_DEBUG, enable_logger
 from dapp_runner.runner import start_runner, verify_dapp
 
 logger = logging.getLogger(__name__)
@@ -48,6 +48,12 @@ def _get_run_dir(run_id: str) -> Path:
     "-l",
     type=Path,
     help="Path to the log file.",
+)
+@click.option(
+    "--log-level",
+    type=click.Choice(LOG_CHOICES, case_sensitive=False),
+    default=LOG_DEBUG,
+    help="A log level to use while writing the log file",
 )
 @click.option(
     "--state",
@@ -115,13 +121,15 @@ def start(
     run_id = f"{prefix}_{start_time}"
     app_dir = _get_run_dir(run_id)
 
+    log_level = str(kwargs.pop("log_level")).upper()
+
     # Provide default values for data, log and state parameters
     for param_name in ["data", "log", "state", "commands"]:
         param_value = kwargs[param_name]
         if not param_value:
             kwargs[param_name] = app_dir / param_name
 
-    start_runner(config_dict, dapp_dict, **kwargs)
+    start_runner(config_dict, dapp_dict, log_level=log_level, **kwargs)
 
 
 @_cli.command()
