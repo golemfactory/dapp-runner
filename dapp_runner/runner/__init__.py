@@ -12,7 +12,7 @@ from colors import cyan, green, magenta
 
 from dapp_runner._util import _print_env_info, cancel_and_await_tasks, json_encoder, utcnow
 from dapp_runner.descriptor import Config, DappDescriptor, DescriptorError
-from dapp_runner.log import enable_logger
+from dapp_runner.log import enable_logger, log_name_to_level
 
 from .error import RunnerError
 from .infile import feed_from_file
@@ -111,6 +111,7 @@ def start_runner(
     log: Path,
     dev: bool,
     debug: bool,
+    log_level: str,
     commands: Optional[Path] = None,
     stdout: Optional[Path] = None,
     stderr: Optional[Path] = None,
@@ -132,6 +133,7 @@ def start_runner(
             log_file=str(log.resolve()),
             enable_warnings=dev,
             console_log_level=logging.DEBUG if debug else logging.INFO,
+            file_log_level=log_name_to_level(log_level),
         )
 
         commands_f = stack.enter_context(open(str(commands), "w+", 1)) if commands else None

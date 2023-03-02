@@ -8,6 +8,31 @@ from yapapi.log import _YagnaDatetimeFormatter  # noqa
 
 logger = logging.getLogger(__name__)
 
+LOG_CRITICAL = "CRITICAL"
+LOG_FATAL = "FATAL"
+LOG_ERROR = "ERROR"
+LOG_WARN = "WARN"
+LOG_WARNING = "WARNING"
+LOG_INFO = "INFO"
+LOG_DEBUG = "DEBUG"
+
+log_names = {
+    LOG_CRITICAL: logging.CRITICAL,
+    LOG_FATAL: logging.CRITICAL,
+    LOG_ERROR: logging.ERROR,
+    LOG_WARN: logging.WARNING,
+    LOG_WARNING: logging.WARNING,
+    LOG_INFO: logging.INFO,
+    LOG_DEBUG: logging.DEBUG,
+}
+
+LOG_CHOICES = log_names.keys()
+
+
+def log_name_to_level(log_name: str) -> int:
+    """Return log level corresponding to the name."""
+    return log_names[log_name]
+
 
 def enable_logger(
     log_file: Optional[str] = None,
