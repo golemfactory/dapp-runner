@@ -37,7 +37,8 @@ pyyaml = "^5.0"  # requires bump to goth's dependencies https://github.com/golem
 shortuuid = "^1.0"
 ansicolors = "^1.1.8"
 networkx = "^2.8"
-yapapi = "^0.10.0"
+yapapi = { git = "https://github.com/golemfactory/yapapi.git", branch = "blue/goth-separate-venv" }
+pydantic = "^1.10.5"
 
 [tool.poetry.group.dev.dependencies]
 setuptools = "*"  # implicitly required by liccehck
@@ -57,13 +58,6 @@ liccheck = "^0.7.2"
 pytest-mock = "^3.10.0"
 factory-boy = "^3.2.1"
 isort = "^5.11.4"
-
-[tool.poetry.group.tests_integration]
-optional = true
-
-[tool.poetry.group.tests_integration.dependencies]
-goth = "^0.14.0"
-requests = "^2.28.2"
 
 [tool.poetry.scripts]
 dapp-runner = "dapp_runner.__main__:_cli"
