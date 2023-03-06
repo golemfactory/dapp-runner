@@ -40,7 +40,7 @@ async def _run_app(
     silent=False,
 ):
     """Run the dapp using the Runner."""
-    config = Config.load(config_dict)
+    config = Config(**config_dict)
     dapp = DappDescriptor.load(dapp_dict)
 
     r = Runner(config=config, dapp=dapp)
