@@ -1,13 +1,13 @@
 """Class definitions for the Dapp Runner's dapp descriptor."""
 import logging
-from dataclasses import dataclass, field, fields
-from typing import Any, Dict, Final, List, Optional, Tuple
+from typing import Any, Dict, Final, List, Optional, Tuple, Union
 
 import networkx
+from pydantic import BaseModel, Field, PrivateAttr, validator
 
 from yapapi.payload import vm
 
-from .base import BaseDescriptor, DescriptorError
+from .base import DescriptorError
 
 NETWORK_DEFAULT_NAME: Final[str] = "default"
 
@@ -26,124 +26,150 @@ VM_CAPS_MANIFEST: Final[str] = "manifest-support"
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class PayloadDescriptor:
+class PayloadDescriptor(BaseModel):
     """Yapapi Payload descriptor."""
 
     runtime: str
-    params: Dict[str, Any] = field(default_factory=dict)
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+    class Config:  # noqa: D106
+        extra = "forbid"
 
 
-@dataclass
-class PortMapping:
+class PortMapping(BaseModel):
     """Port mapping for a http proxy."""
 
     remote_port: int
     local_port: Optional[int] = None
 
+    class Config:  # noqa: D106
+        extra = "forbid"
 
-@dataclass
-class ProxyDescriptor(BaseDescriptor["ProxyDescriptor"]):
+
+class ProxyDescriptor(BaseModel):
     """Proxy descriptor."""
 
-    def __ports_factory(value: str) -> PortMapping:  # type: ignore [misc]  # noqa
-        ports = [int(p) for p in value.split(":")]
-        port_mappping = PortMapping(remote_port=ports.pop())
-        if ports:
-            port_mappping.local_port = ports.pop()
-        return port_mappping
+    ports: List[PortMapping]
 
-    ports: List[PortMapping] = field(metadata={"factory": __ports_factory})
+    class Config:  # noqa: D106
+        extra = "forbid"
+
+    @validator("ports", pre=True, each_item=True)
+    def __ports_preprocess(cls, v):
+        if isinstance(v, PortMapping):
+            return v
+
+        p = v.split(":")
+        return {"remote_port": p.pop(), "local_port": p.pop() if p else None}
 
 
-@dataclass
 class HttpProxyDescriptor(ProxyDescriptor):
     """HTTP proxy descriptor."""
 
 
-@dataclass
 class SocketProxyDescriptor(ProxyDescriptor):
     """TCP socket proxy descriptor."""
 
 
-@dataclass
-class CommandDescriptor:
+def parse_command_descriptor(value: Union[str, List, Dict]):
+    """Convert a single command descriptor to its canonical form.
+
+    Supported formats:
+
+    ```yaml
+    init:
+      - test:
+          args: ["/bin/rm", "/var/log/nginx/access.log", "/var/log/nginx/error.log"]
+          from: "aa"
+          to: "b"
+      - aaa:
+          args: ["/bin/rm", "/var/log/nginx/access.log", "/var/log/nginx/error.log"]
+          from: "aa"
+          to: "b"
+    ```
+
+    ```yaml
+    init: ["/docker-entrypoint.sh"]
+    ```
+
+    ```yaml
+    init:
+      - run:
+          args:
+            - "/docker-entrypoint.sh"
+    ```
+
+    ```yaml
+    init:
+        - ["/docker-entrypoint.sh"]
+        - ["/bin/chmod", "a+x", "/"]
+        - ["/bin/sh", "-c", 'echo "Hello from inside Golem!" > /usr/share/nginx/html/index.html']
+    ```
+
+    """
+    if isinstance(value, list):
+        # assuming it's a `run`
+        return {"cmd": EXEUNIT_CMD_RUN, "params": {"args": value}}
+    elif isinstance(value, dict) and len(value.keys()) == 1:
+        # we don't want to support malformed entries
+        # where multiple commands are present in a single dictionary
+        for cmd, params in value.items():
+            if cmd == EXEUNIT_CMD_RUN and isinstance(params, list):
+                # support shorthand `run` notation:
+                # - run:
+                #    - ["/golem/run/simulate_observations_ctl.py", "--start"]
+                params = {"args": params}
+            return {"cmd": cmd, "params": params}
+    else:
+        raise DescriptorError(f"Cannot parse the command descriptor `{value}`.")
+
+
+class CommandDescriptor(BaseModel):
     """Exeunit command descriptor."""
 
     cmd: str = EXEUNIT_CMD_RUN
-    params: Dict[str, Any] = field(default_factory=dict)
+    params: Dict[str, Any] = Field(default_factory=dict)
 
-    @classmethod
-    def load(cls, c):
-        """Load a command descriptor from its serialized representation."""
-        if isinstance(c, list):
-            # assuming it's a `run`
-            return cls(params={"args": c})
-        elif isinstance(c, dict) and len(c.keys()) == 1:
-            # we don't want to support malformed entries
-            # where multiple commands are present in a single dictionary
-            for cmd, params in c.items():
-                if cmd == EXEUNIT_CMD_RUN and isinstance(params, list):
-                    # support shorthand `run` notation:
-                    # - run:
-                    #    - ["/golem/run/simulate_observations_ctl.py", "--start"]
-                    params = {"args": params}
-                return CommandDescriptor(cmd=cmd, params=params)
-        else:
-            raise DescriptorError(f"Cannot parse the command descriptor `{c}`.")
+    class Config:  # noqa: D106
+        extra = "forbid"
 
 
-class _CommandDescriptorList:
-    """Preprocessor for the exescript commands."""
-
-    def _process_command(self, c):
-        self.commands.append(CommandDescriptor.load(c))
-
-    def __init__(self):
-        self.commands = list()
-
-    @classmethod
-    def load_commands(cls, value) -> List[CommandDescriptor]:
-        """Load the contents of the commands list."""
-        commands_list = cls()
-
-        if len(value) > 0 and isinstance(value[0], str):
-            # support single line definitions, e.g. `init: ["/docker-entrypoint.sh"]`
-            value = [value]
-
-        for c in value:
-            commands_list._process_command(c)
-
-        return commands_list.commands
-
-
-@dataclass
-class ServiceDescriptor(BaseDescriptor["ServiceDescriptor"]):
+class ServiceDescriptor(BaseModel):
     """Yapapi Service descriptor."""
 
     payload: str
-    init: List[CommandDescriptor] = field(
-        metadata={"load": _CommandDescriptorList.load_commands}, default_factory=list
-    )
+    init: List[CommandDescriptor] = Field(default_factory=list)
     network: Optional[str] = None
-    ip: List[str] = field(default_factory=list)
+    ip: List[str] = Field(default_factory=list)
     http_proxy: Optional[HttpProxyDescriptor] = None
     tcp_proxy: Optional[SocketProxyDescriptor] = None
-    depends_on: List[str] = field(default_factory=list)
+    depends_on: List[str] = Field(default_factory=list)
+
+    class Config:  # noqa: D106
+        extra = "forbid"
+
+    @validator("init", pre=True)
+    def __init_commands(cls, v):
+        if len(v) > 0 and isinstance(v[0], str):
+            # support single line definitions, e.g. `init: ["/docker-entrypoint.sh"]`
+            v = [v]
+
+        return [parse_command_descriptor(v) for v in v]
 
 
-@dataclass
-class NetworkDescriptor(BaseDescriptor["NetworkDescriptor"]):
+class NetworkDescriptor(BaseModel):
     """Yapapi network descriptor."""
 
-    ip: str = field(default="192.168.0.0/24")
+    ip: str = "192.168.0.0/24"
     owner_ip: Optional[str] = None
     mask: Optional[str] = None
     gateway: Optional[str] = None
 
+    class Config:  # noqa: D106
+        extra = "forbid"
 
-@dataclass
-class MetaDescriptor:
+
+class MetaDescriptor(BaseModel):
     """Meta descriptor for the app.
 
     Silently ignores unknown fields.
@@ -154,24 +180,27 @@ class MetaDescriptor:
     author: str = ""
     version: str = ""
 
-    def __init__(self, **kwargs):
-        for f in fields(self):
-            if f.name in kwargs:
-                setattr(self, f.name, f.type(kwargs.pop(f.name)))
-        if kwargs:
-            logger.debug("Unrecognized `meta` fields: %s", kwargs)
 
-
-@dataclass
-class DappDescriptor(BaseDescriptor["DappDescriptor"]):
+class DappDescriptor(BaseModel):
     """Root dapp descriptor for the Dapp Runner."""
 
     payloads: Dict[str, PayloadDescriptor]
     nodes: Dict[str, ServiceDescriptor]
-    networks: Dict[str, NetworkDescriptor] = field(default_factory=dict)
-    meta: MetaDescriptor = field(default_factory=MetaDescriptor)
+    networks: Dict[str, NetworkDescriptor] = Field(default_factory=dict)
+    meta: MetaDescriptor = Field(default_factory=MetaDescriptor)
 
-    _dependency_graph: networkx.DiGraph = field(init=False)
+    _dependency_graph: networkx.DiGraph = PrivateAttr()
+
+    class Config:  # noqa: D106
+        extra = "forbid"
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.__validate_nodes()
+        self.__implicit_proxy_init()
+        self.__implicit_vpn()
+        self.__implicit_manifest_support()
+        self._resolve_dependencies()
 
     def __validate_nodes(self):
         """Ensure that required payloads and optional networks are defined."""
@@ -244,10 +273,3 @@ class DappDescriptor(BaseDescriptor["DappDescriptor"]):
             for name in reversed(list(networkx.topological_sort(self._dependency_graph)))
             if name != DEPENDENCY_ROOT
         ]
-
-    def __post_init__(self):
-        self.__validate_nodes()
-        self.__implicit_proxy_init()
-        self.__implicit_vpn()
-        self.__implicit_manifest_support()
-        self._resolve_dependencies()
