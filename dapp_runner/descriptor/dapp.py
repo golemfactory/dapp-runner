@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, PrivateAttr, validator
 
 from yapapi.payload import vm
 
-from .base import DescriptorError
+from .error import DescriptorError
 
 NETWORK_DEFAULT_NAME: Final[str] = "default"
 
