@@ -72,14 +72,21 @@ checks_typing  = {cmd = "mypy --install-types --non-interactive --ignore-missing
 checks_license = {sequence = ["_checks_license_export", "_checks_license_verify"], help = "Run only license compatibility checks"}
 _checks_license_export = "poetry export -f requirements.txt -o .requirements.txt"
 _checks_license_verify = "liccheck -r .requirements.txt"
+
 format = {sequence = ["_format_autoflake", "_format_isort", "_format_black"], help = "Run code auto formatting"}
 _format_autoflake = "autoflake ."
 _format_isort = "isort ."
 _format_black = "black ."
+
 tests = {sequence = ["tests_unit"], help = "Run all available tests"}
 tests_unit = {cmd = "pytest --cov --cov-report html --cov-report term -sv tests/unit", help = "Run only unit tests"}
-tests_integration_assets = "python -m goth create-assets tests/goth_tests/assets"
-tests_integration = "pytest -svx tests/goth_tests --disable-pytest-warnings --config-override docker-compose.build-environment.use-prerelease=true --config-path tests/goth_tests/assets/goth-config-testing.yml"
+
+_tests_integration_env = "python -m venv .envs/goth"
+_tests_integration_requirements = ".envs/goth/bin/pip install --extra-index-url https://test.pypi.org/simple/ goth==0.14.1 pytest pytest-asyncio pexpect"
+_tests_integration_assets = ".envs/goth/bin/python -m goth create-assets tests/goth_tests/assets"
+tests_integration_init = ["_tests_integration_env", "_tests_integration_requirements", "_tests_integration_assets"]
+tests_integration = ".envs/goth/bin/pytest -svx tests/goth_tests --disable-pytest-warnings --config-override docker-compose.build-environment.use-prerelease=true --config-path tests/goth_tests/assets/goth-config-testing.yml"
+
 
 [tool.liccheck]
 authorized_licenses = [
