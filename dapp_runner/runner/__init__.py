@@ -83,16 +83,16 @@ async def _run_app(
     time_started: Optional[datetime] = None
 
     try:
-        while not r.dapp_started and utcnow() < r.commissioning_time + startup_timeout:
+        while not r.dapp_started and not r.api_shutdown and utcnow() < r.commissioning_time + startup_timeout:
             await asyncio.sleep(1)
 
-        if not r.dapp_started:
+        if not r.api_shutdown and not r.dapp_started:
             raise Exception(f"Failed to start instances before {startup_timeout} elapsed.")
 
         time_started = utcnow()
         logger.info("Application started.")
 
-        while r.dapp_started and not _running_time_elapsed(time_started, max_running_time):
+        while r.dapp_started and not r.api_shutdown and not _running_time_elapsed(time_started, max_running_time):
             await asyncio.sleep(1)
     finally:
         if _running_time_elapsed(time_started, max_running_time):
