@@ -36,7 +36,7 @@ def _get_run_dir(run_id: str) -> Path:
     return app_dir
 
 
-@_cli.command()
+@_cli.command(context_settings={"show_default": True})
 @click.option(
     "--data",
     "-d",
@@ -85,6 +85,22 @@ def _get_run_dir(run_id: str) -> Path:
     help="Path to the file containing yagna-specific config.",
 )
 @click.option(
+    "--enable-api",
+    is_flag=True,
+    default=False,
+    help="Configuration override for the `api.enabled` key.",
+)
+@click.option(
+    "--api-host",
+    type=str,
+    help="Configuration override for the `api.host` key.",
+)
+@click.option(
+    "--api-port",
+    type=int,
+    help="Configuration override for the `api.port` key.",
+)
+@click.option(
     "--dev",
     is_flag=True,
     default=False,
@@ -129,7 +145,12 @@ def start(
         if not param_value:
             kwargs[param_name] = app_dir / param_name
 
-    start_runner(config_dict, dapp_dict, log_level=log_level, **kwargs)
+    api_config_dict = {
+        k: kwargs.pop(k)
+        for k in set(kwargs.keys()).intersection({"enable_api", "api_host", "api_port"})
+    }
+
+    start_runner(config_dict, api_config_dict, dapp_dict, log_level=log_level, **kwargs)
 
 
 @_cli.command()

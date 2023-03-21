@@ -3,6 +3,7 @@ import asyncio
 import logging
 from datetime import datetime
 from typing import Dict, Final, List, Optional
+
 import uvicorn
 
 from yapapi import Golem
@@ -90,9 +91,11 @@ class Runner:
 
     @classmethod
     def get_instance(cls):
+        """Get the Runner instance."""
         return cls._instance
 
     async def _serve_api(self):
+        assert self.api_server, "Uninitialized API server, call `_start_api` first."
         try:
             await self.api_server.serve()
         finally:
@@ -102,7 +105,9 @@ class Runner:
             self.api_shutdown = True
 
     async def _start_api(self):
-        config = uvicorn.Config("dapp_runner.api:app", port=8000)
+        config = uvicorn.Config(
+            "dapp_runner.api:app", host=self.config.api.host, port=self.config.api.port
+        )
         self.api_server = uvicorn.Server(config)
         self._tasks.append(asyncio.create_task(self._serve_api()))
 
@@ -189,7 +194,9 @@ class Runner:
     async def start(self):
         """Start the Golem engine and the dapp."""
 
-        await self._start_api()
+        if self.config.api.enabled:
+            await self._start_api()
+
         self.commissioning_time = utcnow()
 
         # explicitly mark that we ultimately want app in "running" state,

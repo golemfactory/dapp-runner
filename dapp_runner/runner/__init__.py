@@ -31,8 +31,17 @@ def _running_time_elapsed(
     return bool(time_started and max_running_time and utcnow() > time_started + max_running_time)
 
 
+def _update_api_config(config: Config, api_config_dict: dict):
+    arg_field_map = {"enable_api": "enabled", "api_host": "host", "api_port": "port"}
+
+    for k, v in api_config_dict.items():
+        if v is not None:
+            setattr(config.api, arg_field_map[k], v)
+
+
 async def _run_app(
     config_dict: dict,
+    api_config_dict: dict,
     dapp_dict: dict,
     data_f: TextIO,
     state_f: TextIO,
@@ -41,6 +50,8 @@ async def _run_app(
 ):
     """Run the dapp using the Runner."""
     config = Config(**config_dict)
+    _update_api_config(config, api_config_dict)
+
     dapp = DappDescriptor(**dapp_dict)
 
     r = Runner(config=config, dapp=dapp)
@@ -83,7 +94,11 @@ async def _run_app(
     time_started: Optional[datetime] = None
 
     try:
-        while not r.dapp_started and not r.api_shutdown and utcnow() < r.commissioning_time + startup_timeout:
+        while (
+            not r.dapp_started
+            and not r.api_shutdown
+            and utcnow() < r.commissioning_time + startup_timeout
+        ):
             await asyncio.sleep(1)
 
         if not r.api_shutdown and not r.dapp_started:
@@ -92,7 +107,11 @@ async def _run_app(
         time_started = utcnow()
         logger.info("Application started.")
 
-        while r.dapp_started and not r.api_shutdown and not _running_time_elapsed(time_started, max_running_time):
+        while (
+            r.dapp_started
+            and not r.api_shutdown
+            and not _running_time_elapsed(time_started, max_running_time)
+        ):
             await asyncio.sleep(1)
     finally:
         if _running_time_elapsed(time_started, max_running_time):
@@ -105,6 +124,7 @@ async def _run_app(
 
 def start_runner(
     config_dict: dict,
+    api_config_dict: dict,
     dapp_dict: dict,
     data: Path,
     state: Path,
@@ -140,7 +160,7 @@ def start_runner(
 
         loop = asyncio.get_event_loop()
         task = loop.create_task(
-            _run_app(config_dict, dapp_dict, data_f, state_f, commands_f, silent)
+            _run_app(config_dict, api_config_dict, dapp_dict, data_f, state_f, commands_f, silent)
         )
 
         try:
