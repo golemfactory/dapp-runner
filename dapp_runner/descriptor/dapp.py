@@ -60,11 +60,11 @@ class ProxyDescriptor(BaseModel):
         if isinstance(v, PortMapping):
             return v
 
-        m = re.match("^(\\d+)(\\:(\\d+))?$", v)
+        m = re.match("^((\\d+)\\:)?(\\d+)$", v)
         if not m:
             raise ValueError("Expected format: `remote_port` or `remote_port:local_port`.")
 
-        return {"remote_port": m.group(1), "local_port": m.group(3) if m.group(3) else None}
+        return {"remote_port": m.group(3), "local_port": m.group(2) if m.group(2) else None}
 
 
 class HttpProxyDescriptor(ProxyDescriptor):
