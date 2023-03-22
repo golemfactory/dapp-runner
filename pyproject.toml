@@ -37,7 +37,7 @@ pyyaml = "^5.0"  # requires bump to goth's dependencies https://github.com/golem
 shortuuid = "^1.0"
 ansicolors = "^1.1.8"
 networkx = "^2.8"
-yapapi = { git = "https://github.com/golemfactory/yapapi.git", branch = "blue/goth-separate-venv" }
+yapapi = { git = "https://github.com/golemfactory/yapapi.git", branch = "master" }
 pydantic = "^1.10.5"
 
 [tool.poetry.group.dev.dependencies]
@@ -81,10 +81,10 @@ _format_black = "black ."
 tests = {sequence = ["tests_unit"], help = "Run all available tests"}
 tests_unit = {cmd = "pytest --cov --cov-report html --cov-report term -sv tests/unit", help = "Run only unit tests"}
 
+tests_integration_init = ["_tests_integration_env", "_tests_integration_requirements", "_tests_integration_assets"]
 _tests_integration_env = "python -m venv .envs/goth"
 _tests_integration_requirements = ".envs/goth/bin/pip install --extra-index-url https://test.pypi.org/simple/ goth==0.14.1 pytest pytest-asyncio pexpect"
 _tests_integration_assets = ".envs/goth/bin/python -m goth create-assets tests/goth_tests/assets"
-tests_integration_init = ["_tests_integration_env", "_tests_integration_requirements", "_tests_integration_assets"]
 tests_integration = ".envs/goth/bin/pytest -svx tests/goth_tests --disable-pytest-warnings --config-override docker-compose.build-environment.use-prerelease=true --config-path tests/goth_tests/assets/goth-config-testing.yml"
 
 

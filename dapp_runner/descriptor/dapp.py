@@ -1,5 +1,6 @@
 """Class definitions for the Dapp Runner's dapp descriptor."""
 import logging
+import re
 from typing import Any, Dict, Final, List, Optional, Tuple, Union
 
 import networkx
@@ -55,12 +56,15 @@ class ProxyDescriptor(BaseModel):
         extra = "forbid"
 
     @validator("ports", pre=True, each_item=True)
-    def __ports_preprocess(cls, v):
+    def __ports__preprocess(cls, v):
         if isinstance(v, PortMapping):
             return v
 
-        p = v.split(":")
-        return {"remote_port": p.pop(), "local_port": p.pop() if p else None}
+        m = re.match("^(\\d+)(\\:(\\d+))?$", v)
+        if not m:
+            raise ValueError("Expected format: `remote_port` or `remote_port:local_port`.")
+
+        return {"remote_port": m.group(1), "local_port": m.group(3) if m.group(3) else None}
 
 
 class HttpProxyDescriptor(ProxyDescriptor):
@@ -149,8 +153,8 @@ class ServiceDescriptor(BaseModel):
         extra = "forbid"
 
     @validator("init", pre=True)
-    def __init_commands(cls, v):
-        if len(v) > 0 and isinstance(v[0], str):
+    def __init__parse_commands(cls, v):
+        if len(v) and isinstance(v[0], str):
             # support single line definitions, e.g. `init: ["/docker-entrypoint.sh"]`
             v = [v]
 
