@@ -29,7 +29,7 @@ def test_get_free_port_exceeded(test_utils):
     with pytest.raises(RuntimeError) as e:
         FreePortProvider().get_free_port()
         test_utils.verify_error(
-            RuntimeError("No free ports found. range_start=8080, range_end=9090"), e
+            (RuntimeError, "No free ports found. range_start=8080, range_end=9090"), e
         )
 
 

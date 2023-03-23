@@ -1,7 +1,6 @@
 """Main Dapp Runner module."""
 import asyncio
 import logging
-from dataclasses import asdict
 from datetime import datetime
 from typing import Dict, Final, List, Optional
 
@@ -82,7 +81,7 @@ class Runner:
 
     async def _create_networks(self):
         for name, desc in self.dapp.networks.items():
-            self._networks[name] = await self.golem.create_network(**asdict(desc))
+            self._networks[name] = await self.golem.create_network(**desc.dict())
 
     async def _load_payloads(self):
         for name, desc in self.dapp.payloads.items():
@@ -340,7 +339,7 @@ class Runner:
                     continue
 
                 logger.debug("Creating runtime command: %s", cmd_def)
-                cmd = CommandDescriptor.load(cmd_def)
+                cmd = CommandDescriptor(**cmd_def)
                 service.command_queue.put_nowait(cmd)
 
     def _is_cluster_state(self, cluster_id: str, state: ServiceState) -> bool:

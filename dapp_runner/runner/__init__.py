@@ -40,8 +40,8 @@ async def _run_app(
     silent=False,
 ):
     """Run the dapp using the Runner."""
-    config = Config.load(config_dict)
-    dapp = DappDescriptor.load(dapp_dict)
+    config = Config(**config_dict)
+    dapp = DappDescriptor(**dapp_dict)
 
     r = Runner(config=config, dapp=dapp)
     _print_env_info(r.golem)
@@ -160,7 +160,7 @@ def start_runner(
 def verify_dapp(dapp_dict: dict):
     """Verify the passed app descriptor schema and report any encountered errors."""
     try:
-        dapp = DappDescriptor.load(dapp_dict)
+        dapp = DappDescriptor(**dapp_dict)
         print(dapp)
     except DescriptorError as e:
         print(e)
