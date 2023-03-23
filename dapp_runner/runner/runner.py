@@ -69,7 +69,7 @@ class Runner:
             subnet_tag=config.yagna.subnet_tag,
             payment_driver=config.payment.driver,
             payment_network=config.payment.network,
-            api_config=ApiConfig(app_key=config.yagna.app_key),
+            api_config=ApiConfig(app_key=config.yagna.app_key),  # type: ignore
         )
 
         self.clusters = {}
