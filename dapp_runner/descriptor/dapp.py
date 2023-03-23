@@ -1,5 +1,6 @@
 """Class definitions for the Dapp Runner's dapp descriptor."""
 import logging
+import re
 from typing import Any, Dict, Final, List, Optional, Tuple, Union
 
 import networkx
@@ -55,12 +56,16 @@ class ProxyDescriptor(BaseModel):
         extra = "forbid"
 
     @validator("ports", pre=True, each_item=True)
-    def __ports_preprocess(cls, v):
+    def __ports__preprocess(cls, v):
         if isinstance(v, PortMapping):
             return v
 
-        p = v.split(":")
-        return {"remote_port": p.pop(), "local_port": p.pop() if p else None}
+        try:
+            return re.match(
+                r"^(?:(?P<local_port>\d+)\:)?(?P<remote_port>\d+)$", v
+            ).groupdict()  # type: ignore [union-attr]
+        except AttributeError:
+            raise ValueError("Expected format: `remote_port` or `local_port:remote_port`.")
 
 
 class HttpProxyDescriptor(ProxyDescriptor):
@@ -71,59 +76,6 @@ class SocketProxyDescriptor(ProxyDescriptor):
     """TCP socket proxy descriptor."""
 
 
-def parse_command_descriptor(value: Union[str, List, Dict]):
-    """Convert a single command descriptor to its canonical form.
-
-    Supported formats:
-
-    ```yaml
-    init:
-      - test:
-          args: ["/bin/rm", "/var/log/nginx/access.log", "/var/log/nginx/error.log"]
-          from: "aa"
-          to: "b"
-      - aaa:
-          args: ["/bin/rm", "/var/log/nginx/access.log", "/var/log/nginx/error.log"]
-          from: "aa"
-          to: "b"
-    ```
-
-    ```yaml
-    init: ["/docker-entrypoint.sh"]
-    ```
-
-    ```yaml
-    init:
-      - run:
-          args:
-            - "/docker-entrypoint.sh"
-    ```
-
-    ```yaml
-    init:
-        - ["/docker-entrypoint.sh"]
-        - ["/bin/chmod", "a+x", "/"]
-        - ["/bin/sh", "-c", 'echo "Hello from inside Golem!" > /usr/share/nginx/html/index.html']
-    ```
-
-    """
-    if isinstance(value, list):
-        # assuming it's a `run`
-        return {"cmd": EXEUNIT_CMD_RUN, "params": {"args": value}}
-    elif isinstance(value, dict) and len(value.keys()) == 1:
-        # we don't want to support malformed entries
-        # where multiple commands are present in a single dictionary
-        for cmd, params in value.items():
-            if cmd == EXEUNIT_CMD_RUN and isinstance(params, list):
-                # support shorthand `run` notation:
-                # - run:
-                #    - ["/golem/run/simulate_observations_ctl.py", "--start"]
-                params = {"args": params}
-            return {"cmd": cmd, "params": params}
-    else:
-        raise DescriptorError(f"Cannot parse the command descriptor `{value}`.")
-
-
 class CommandDescriptor(BaseModel):
     """Exeunit command descriptor."""
 
@@ -132,6 +84,59 @@ class CommandDescriptor(BaseModel):
 
     class Config:  # noqa: D106
         extra = "forbid"
+
+    @classmethod
+    def canonize_input(cls, value: Union[str, List, Dict]):
+        """Convert a single command descriptor to its canonical form.
+
+        Supported formats:
+
+        ```yaml
+        init:
+          - test:
+              args: ["/bin/rm", "/var/log/nginx/access.log", "/var/log/nginx/error.log"]
+              from: "aa"
+              to: "b"
+          - aaa:
+              args: ["/bin/rm", "/var/log/nginx/access.log", "/var/log/nginx/error.log"]
+              from: "aa"
+              to: "b"
+        ```
+
+        ```yaml
+        init: ["/docker-entrypoint.sh"]
+        ```
+
+        ```yaml
+        init:
+          - run:
+              args:
+                - "/docker-entrypoint.sh"
+        ```
+
+        ```yaml
+        init:
+            - ["/docker-entrypoint.sh"]
+            - ["/bin/chmod", "a+x", "/"]
+            - ["/bin/sh", "-c", 'echo "Hello from inside Golem!" > /usr/share/nginx/html/index.html']  # noqa
+        ```
+
+        """
+        if isinstance(value, list):
+            # assuming it's a `run`
+            return {"cmd": EXEUNIT_CMD_RUN, "params": {"args": value}}
+        elif isinstance(value, dict) and len(value.keys()) == 1:
+            # we don't want to support malformed entries
+            # where multiple commands are present in a single dictionary
+            for cmd, params in value.items():
+                if cmd == EXEUNIT_CMD_RUN and isinstance(params, list):
+                    # support shorthand `run` notation:
+                    # - run:
+                    #    - ["/golem/run/simulate_observations_ctl.py", "--start"]
+                    params = {"args": params}
+                return {"cmd": cmd, "params": params}
+        else:
+            raise DescriptorError(f"Cannot parse the command descriptor `{value}`.")
 
 
 class ServiceDescriptor(BaseModel):
@@ -149,12 +154,12 @@ class ServiceDescriptor(BaseModel):
         extra = "forbid"
 
     @validator("init", pre=True)
-    def __init_commands(cls, v):
-        if len(v) > 0 and isinstance(v[0], str):
+    def __init__canonize_commands(cls, v):
+        if len(v) and isinstance(v[0], str):
             # support single line definitions, e.g. `init: ["/docker-entrypoint.sh"]`
             v = [v]
 
-        return [parse_command_descriptor(v) for v in v]
+        return [CommandDescriptor.canonize_input(v) for v in v]
 
 
 class NetworkDescriptor(BaseModel):
