@@ -7,6 +7,7 @@ from typing import Dict, Final, List, Optional
 import uvicorn
 
 from yapapi import Golem
+from yapapi.config import ApiConfig
 from yapapi.contrib.service.http_proxy import LocalHttpProxy
 from yapapi.contrib.service.socket_proxy import SocketProxy
 from yapapi.events import CommandExecuted
@@ -68,7 +69,7 @@ class Runner:
             subnet_tag=config.yagna.subnet_tag,
             payment_driver=config.payment.driver,
             payment_network=config.payment.network,
-            app_key=config.yagna.app_key,
+            api_config=ApiConfig(app_key=config.yagna.app_key),
         )
 
         self.clusters = {}

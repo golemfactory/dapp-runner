@@ -4,10 +4,11 @@ import re
 from typing import Any, Dict, Final, List, Optional, Tuple, Union
 
 import networkx
-from pydantic import BaseModel, Field, PrivateAttr, validator
+from pydantic import Field, PrivateAttr, validator
 
 from yapapi.payload import vm
 
+from .base import GaomBase
 from .error import DescriptorError
 
 NETWORK_DEFAULT_NAME: Final[str] = "default"
@@ -27,7 +28,7 @@ VM_CAPS_MANIFEST: Final[str] = "manifest-support"
 logger = logging.getLogger(__name__)
 
 
-class PayloadDescriptor(BaseModel):
+class PayloadDescriptor(GaomBase):
     """Yapapi Payload descriptor."""
 
     runtime: str
@@ -37,7 +38,7 @@ class PayloadDescriptor(BaseModel):
         extra = "forbid"
 
 
-class PortMapping(BaseModel):
+class PortMapping(GaomBase):
     """Port mapping for a http proxy."""
 
     remote_port: int
@@ -47,7 +48,7 @@ class PortMapping(BaseModel):
         extra = "forbid"
 
 
-class ProxyDescriptor(BaseModel):
+class ProxyDescriptor(GaomBase):
     """Proxy descriptor."""
 
     ports: List[PortMapping]
@@ -76,7 +77,7 @@ class SocketProxyDescriptor(ProxyDescriptor):
     """TCP socket proxy descriptor."""
 
 
-class CommandDescriptor(BaseModel):
+class CommandDescriptor(GaomBase):
     """Exeunit command descriptor."""
 
     cmd: str = EXEUNIT_CMD_RUN
@@ -139,7 +140,7 @@ class CommandDescriptor(BaseModel):
             raise DescriptorError(f"Cannot parse the command descriptor `{value}`.")
 
 
-class ServiceDescriptor(BaseModel):
+class ServiceDescriptor(GaomBase):
     """Yapapi Service descriptor."""
 
     payload: str
@@ -162,7 +163,7 @@ class ServiceDescriptor(BaseModel):
         return [CommandDescriptor.canonize_input(v) for v in v]
 
 
-class NetworkDescriptor(BaseModel):
+class NetworkDescriptor(GaomBase):
     """Yapapi network descriptor."""
 
     ip: str = "192.168.0.0/24"
@@ -174,7 +175,7 @@ class NetworkDescriptor(BaseModel):
         extra = "forbid"
 
 
-class MetaDescriptor(BaseModel):
+class MetaDescriptor(GaomBase):
     """Meta descriptor for the app.
 
     Silently ignores unknown fields.
@@ -186,7 +187,7 @@ class MetaDescriptor(BaseModel):
     version: str = ""
 
 
-class DappDescriptor(BaseModel):
+class DappDescriptor(GaomBase):
     """Root dapp descriptor for the Dapp Runner."""
 
     payloads: Dict[str, PayloadDescriptor]
