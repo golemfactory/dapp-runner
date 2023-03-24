@@ -17,6 +17,11 @@ jobs:
     name: Run integration tests
     runs-on: [goth, ubuntu-22.04]
     steps:
+      - name: install docker-compose
+        run: |
+          sudo curl -L "https://github.com/docker/compose/releases/download/1.28.4/docker-compose-Linux-x86_64" -o /usr/local/bin/docker-compose
+          sudo chmod a+x /usr/local/bin/docker-compose
+
       - name: Checkout
         uses: actions/checkout@v3
         with:

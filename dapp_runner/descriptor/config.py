@@ -52,12 +52,24 @@ class LimitsConfig(BaseModel):
         extra = "forbid"
 
 
+class ApiConfig(BaseModel):
+    """Configuration of the built-in API Server."""
+
+    enabled: bool = False
+    host: str = "127.0.0.1"
+    port: int = 8000
+
+    class Config:  # noqa: D106
+        extra = "forbid"
+
+
 class Config(BaseModel):
     """Root configuration descriptor for the Dapp Runner."""
 
     yagna: YagnaConfig
     payment: PaymentConfig
     limits: LimitsConfig = Field(default_factory=LimitsConfig)
+    api: ApiConfig = Field(default_factory=ApiConfig)
 
     class Config:  # noqa: D106
         extra = "forbid"

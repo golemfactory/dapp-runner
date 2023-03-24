@@ -4,6 +4,8 @@ import logging
 from datetime import datetime
 from typing import Dict, Final, List, Optional
 
+import uvicorn
+
 from yapapi import Golem
 from yapapi.contrib.service.http_proxy import LocalHttpProxy
 from yapapi.contrib.service.socket_proxy import SocketProxy
@@ -33,6 +35,8 @@ class Runner:
     uses yapapi to run the desired app on Golem and allows interacting with it.
     """
 
+    _instance: Optional["Runner"] = None
+
     config: Config
     dapp: DappDescriptor
     golem: Golem
@@ -52,6 +56,8 @@ class Runner:
     data_queue: asyncio.Queue
     state_queue: asyncio.Queue
     command_queue: asyncio.Queue
+
+    api_server: Optional[uvicorn.Server]
 
     def __init__(self, config: Config, dapp: DappDescriptor):
         self.config = config
@@ -78,6 +84,32 @@ class Runner:
         self._desired_app_state = ServiceState.pending
 
         self._report_status_change()
+        Runner._instance = self
+
+        self.api_server = None
+        self.api_shutdown = False
+
+    @classmethod
+    def get_instance(cls):
+        """Get the Runner instance."""
+        return cls._instance
+
+    async def _serve_api(self):
+        assert self.api_server, "Uninitialized API server, call `_start_api` first."
+        try:
+            await self.api_server.serve()
+        finally:
+            # the uvicorn server seems to consume the SIGINT / CancelledError, so
+            # we have to manually mark its shutdown to trigger shutdown of the
+            # whole runner
+            self.api_shutdown = True
+
+    async def _start_api(self):
+        config = uvicorn.Config(
+            "dapp_runner.api:app", host=self.config.api.host, port=self.config.api.port
+        )
+        self.api_server = uvicorn.Server(config)
+        self._tasks.append(asyncio.create_task(self._serve_api()))
 
     async def _create_networks(self):
         for name, desc in self.dapp.networks.items():
@@ -162,10 +194,13 @@ class Runner:
     async def start(self):
         """Start the Golem engine and the dapp."""
 
+        if self.config.api.enabled:
+            await self._start_api()
+
         self.commissioning_time = utcnow()
 
         # explicitly mark that we ultimately want app in "running" state,
-        #  marking app into "starting" sequence.
+        # marking app into "starting" sequence.
         self._desired_app_state = ServiceState.running
 
         await self.golem.start()

@@ -39,6 +39,8 @@ ansicolors = "^1.1.8"
 networkx = "^2.8"
 yapapi = { git = "https://github.com/golemfactory/yapapi.git", branch = "master" }
 pydantic = "^1.10.5"
+fastapi = "^0.93.0"
+uvicorn = {extras = ["standard"], version = "^0.21.0"}
 
 [tool.poetry.group.dev.dependencies]
 setuptools = "*"  # implicitly required by liccehck
