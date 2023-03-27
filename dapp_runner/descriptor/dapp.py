@@ -247,16 +247,8 @@ class DappDescriptor(GaomBase):
             ):
                 payload.params[VM_PAYLOAD_CAPS_KWARG] = [VM_CAPS_MANIFEST]
 
-    def _resolve_dependencies(self):
-        """Resolve instantiation priorities."""
-
-        # initialize the dependency graph and add a root node
-        self._dependency_graph: networkx.DiGraph = networkx.DiGraph()
-        self._dependency_graph.add_node(DEPENDENCY_ROOT)
-
-        # for now, we only care about the order of services,
-        # later we can enhance the dependency graph to
-        # take all the other entities into consideration
+    def _resolve_depends_on(self):
+        """Resolve dependencies from the `depends_on` clause."""
 
         for name, service in self.nodes.items():
             if service.depends_on:
@@ -268,6 +260,18 @@ class DappDescriptor(GaomBase):
                     self._dependency_graph.add_edge(name, depends_name)
             else:
                 self._dependency_graph.add_edge(DEPENDENCY_ROOT, name)
+
+    def _resolve_dependencies(self):
+        """Resolve instantiation priorities."""
+
+        # initialize the dependency graph and add a root node
+        self._dependency_graph: networkx.DiGraph = networkx.DiGraph()
+        self._dependency_graph.add_node(DEPENDENCY_ROOT)
+
+        # for now, we only care about the order of services,
+        # later we can enhance the dependency graph to
+        # take all the other entities into consideration
+        self._resolve_depends_on()
 
         if not networkx.is_directed_acyclic_graph(self._dependency_graph):
             raise DescriptorError("Service definition contains a circular `depends_on`.")
