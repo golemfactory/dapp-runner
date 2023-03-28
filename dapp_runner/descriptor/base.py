@@ -1,4 +1,6 @@
 """Golem Application Object Model base."""
+import functools
+import json
 import re
 import typing
 from typing import List, Optional
@@ -167,3 +169,13 @@ class GaomBase(BaseModel):
         return (
             self.schema().get("properties").get(field_name).get("runtime", False)  # type: ignore [union-attr]  # noqa
         )
+
+    def interpolate(self, root: "GaomBase", is_runtime: bool = False):
+        """Interpolate GAOM lookups in this descriptor."""
+
+        def interpolate(m):
+            return root.lookup(m.group(1), is_runtime=is_runtime)
+
+        serialized = json.dumps(self.dict())
+        serialized = re.sub(r"\$\{([\w.\[\]]+)\}", interpolate, serialized)
+        return self.__init__(**json.loads(serialized))

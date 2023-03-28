@@ -7,6 +7,7 @@ import networkx
 from pydantic import Field, PrivateAttr, validator
 
 from yapapi.payload import vm
+from yapapi.network import Node as NetworkNode, Network
 
 from .base import GaomBase
 from .error import DescriptorError
@@ -43,6 +44,7 @@ class PortMapping(GaomBase):
 
     remote_port: int
     local_port: Optional[int] = None
+    address: Optional[str] = Field(runtime=True)
 
     class Config:  # noqa: D106
         extra = "forbid"
@@ -58,7 +60,7 @@ class ProxyDescriptor(GaomBase):
 
     @validator("ports", pre=True, each_item=True)
     def __ports__preprocess(cls, v):
-        if isinstance(v, PortMapping):
+        if isinstance(v, PortMapping) or isinstance(v, dict):
             return v
 
         try:
@@ -136,8 +138,24 @@ class CommandDescriptor(GaomBase):
                     #    - ["/golem/run/simulate_observations_ctl.py", "--start"]
                     params = {"args": params}
                 return {"cmd": cmd, "params": params}
+        elif isinstance(value, dict) and set(value.keys()) == {"cmd", "params"}:
+            return value
         else:
             raise DescriptorError(f"Cannot parse the command descriptor `{value}`.")
+
+
+class NetworkNodeDescriptor(GaomBase):
+    """GAOM model reflecting yapapi's network `Node`."""
+
+    node_id: str
+    ip: str
+
+    @classmethod
+    def from_network_node(cls, network_node: NetworkNode):
+        return cls(
+            node_id=network_node.node_id,
+            ip=network_node.ip,
+        )
 
 
 class ServiceDescriptor(GaomBase):
@@ -150,6 +168,9 @@ class ServiceDescriptor(GaomBase):
     http_proxy: Optional[HttpProxyDescriptor] = None
     tcp_proxy: Optional[SocketProxyDescriptor] = None
     depends_on: List[str] = Field(default_factory=list)
+
+    state: Optional[str] = Field(runtime=True, default=None)
+    network_node: Optional[NetworkNodeDescriptor] = Field(runtime=True, default=None)
 
     class Config:  # noqa: D106
         extra = "forbid"
@@ -173,6 +194,15 @@ class NetworkDescriptor(GaomBase):
 
     class Config:  # noqa: D106
         extra = "forbid"
+
+    @classmethod
+    def from_network(cls, network: Network):
+        return cls(
+            ip=network.network_address,
+            owner_ip=network.owner_ip,
+            mask=network.netmask,
+            gateway=network.gateway,
+        )
 
 
 class MetaDescriptor(GaomBase):
