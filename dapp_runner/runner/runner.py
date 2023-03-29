@@ -235,7 +235,11 @@ class Runner:
                 instance_index: instance.state
                 for instance_index, instance in enumerate(cluster.instances)
             }
-            for cluster_id, cluster in self.clusters.items()
+            if cluster
+            else {}
+            for cluster_id, cluster in [
+                (cluster_id, self.clusters.get(cluster_id)) for cluster_id in self.dapp.nodes.keys()
+            ]
         }
 
     @property
@@ -284,20 +288,22 @@ class Runner:
         self.state_queue.put_nowait(
             {
                 "nodes": nodes_states,
-                "app": self._get_app_state_from_nodes(),
+                "app": self._get_app_state_from_nodes(nodes_states),
                 "timestamp": utcnow_iso_str(),
             }
         )
 
-    def _get_app_state_from_nodes(self) -> ServiceState:
+    def _get_app_state_from_nodes(
+        self, dapp_state: Optional[Dict[str, Dict[int, ServiceState]]] = None
+    ) -> ServiceState:
         """Return general application state based on all instances states."""
         # Collect nested node states into simple unique collection of state values
 
-        dapp_state = self.dapp_state
+        dapp_state = dapp_state or self.dapp_state
 
         all_states = set(state for node in dapp_state.values() for state in node.values())
 
-        # If we want dapp to be running handle other states as starting
+        # If we want dapp to be running -> handle other states as starting
         if self._desired_app_state == ServiceState.running:
             # Check node-to-state parity because of node dependency,
             #  states gradually rolls out
