@@ -32,12 +32,12 @@ python = "^3.8"
 
 appdirs = "^1.4"
 click = "^7.0"  # requires bump to goth's dependencies https://github.com/golemfactory/goth/issues/605
-dpath = "^2.0"
+dpath = "~2.0.8"
 pyyaml = "^5.0"  # requires bump to goth's dependencies https://github.com/golemfactory/goth/issues/605
 shortuuid = "^1.0"
 ansicolors = "^1.1.8"
 networkx = "^2.8"
-yapapi = { git = "https://github.com/golemfactory/yapapi.git", branch = "master" }
+yapapi = { git = "https://github.com/golemfactory/yapapi.git", branch = "blue/manifest-helper-fix" }
 pydantic = "^1.10.5"
 fastapi = "^0.93.0"
 uvicorn = {extras = ["standard"], version = "^0.21.0"}
