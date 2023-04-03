@@ -1,5 +1,4 @@
 """Golem Application Object Model base."""
-import functools
 import json
 import re
 import typing

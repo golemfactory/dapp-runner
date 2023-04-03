@@ -6,8 +6,10 @@ from typing import Any, Dict, Final, List, Optional, Tuple, Union
 import networkx
 from pydantic import Field, PrivateAttr, validator
 
+from yapapi.ctx import Activity
+from yapapi.network import Network
+from yapapi.network import Node as NetworkNode
 from yapapi.payload import vm
-from yapapi.network import Node as NetworkNode, Network
 
 from .base import GaomBase
 from .error import DescriptorError
@@ -150,12 +152,41 @@ class NetworkNodeDescriptor(GaomBase):
     node_id: str
     ip: str
 
+    class Config:  # noqa: D106
+        extra = "forbid"
+
     @classmethod
     def from_network_node(cls, network_node: NetworkNode):
+        """Get a NetworkNodeDescriptor based on a `NetworkNode` object."""
         return cls(
             node_id=network_node.node_id,
             ip=network_node.ip,
         )
+
+
+class ActivityDescriptor(GaomBase):
+    """GAOM model referring to yagna's Activity."""
+
+    id: str
+
+    class Config:  # noqa: D106
+        extra = "forbid"
+
+    @classmethod
+    def from_activity(cls, activity: Activity):
+        """Get an ActivityDescriptor based on an `Activity` object."""
+        return cls(id=activity.id)
+
+
+class AgreementDescriptor(GaomBase):
+    """GAOM model referring to yagna's Agreement."""
+
+    id: str
+    provider_id: str
+    provider_name: str
+
+    class Config:  # noqa: D106
+        extra = "forbid"
 
 
 class ServiceDescriptor(GaomBase):
@@ -171,6 +202,8 @@ class ServiceDescriptor(GaomBase):
 
     state: Optional[str] = Field(runtime=True, default=None)
     network_node: Optional[NetworkNodeDescriptor] = Field(runtime=True, default=None)
+    agreement: Optional[AgreementDescriptor] = Field(runtime=True, default=None)
+    activity: Optional[ActivityDescriptor] = Field(runtime=True, default=None)
 
     class Config:  # noqa: D106
         extra = "forbid"
@@ -197,6 +230,7 @@ class NetworkDescriptor(GaomBase):
 
     @classmethod
     def from_network(cls, network: Network):
+        """Get a NetworkDescriptor based on yapapi's `Network` object."""
         return cls(
             ip=network.network_address,
             owner_ip=network.owner_ip,

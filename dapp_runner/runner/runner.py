@@ -18,7 +18,13 @@ from yapapi.services import Cluster, Service, ServiceState
 from dapp_runner._util import FreePortProvider, cancel_and_await_tasks, utcnow, utcnow_iso_str
 from dapp_runner.descriptor import Config, DappDescriptor
 from dapp_runner.descriptor.dapp import (
-    CommandDescriptor, NetworkDescriptor, NetworkNodeDescriptor, PortMapping, ServiceDescriptor,
+    ActivityDescriptor,
+    AgreementDescriptor,
+    CommandDescriptor,
+    NetworkDescriptor,
+    NetworkNodeDescriptor,
+    PortMapping,
+    ServiceDescriptor,
 )
 
 from .payload import get_payload
@@ -289,22 +295,47 @@ class Runner:
             ]
         )
 
-    async def _listen_state_queue(self, service: DappService, service_descriptor: ServiceDescriptor):
+    def _update_node_gaom(self, service: DappService, service_descriptor: ServiceDescriptor):
+        # update the state in the GAOM
+        service_descriptor.state = service.state.identifier
+
+        # update the network node if possible
+        if service.network_node and not service_descriptor.network_node:
+            service_descriptor.network_node = NetworkNodeDescriptor.from_network_node(
+                service.network_node
+            )
+
+        # update the activity if possible
+        if service._ctx:  # noqa
+            ctx = service._ctx  # noqa
+            if not service_descriptor.activity:
+                service_descriptor.activity = ActivityDescriptor.from_activity(
+                    ctx._activity
+                )  # noqa
+
+            if not service_descriptor.agreement:
+                service_descriptor.agreement = AgreementDescriptor(
+                    id=ctx._agreement.id,  # noqa
+                    provider_id=ctx.provider_id,
+                    provider_name=ctx.provider_name,
+                )
+
+        # reset the GAOM state on "pending"
+        if service_descriptor.state == "pending":
+            service_descriptor.network_node = None
+            service_descriptor.activity = None
+            service_descriptor.agreement = None
+
+    async def _listen_state_queue(
+        self, service: DappService, service_descriptor: ServiceDescriptor
+    ):
         """On a state change of the instance, update the Runner's state stream."""
         while True:
             await service.state_queue.get()
 
             # on a state change, we're publishing the state of the whole dapp
             self._report_status_change()
-
-            # update the state in the GAOM
-            service_descriptor.state = service.state.identifier
-
-            # also, update the network node if possible
-            if service.network_node and not service_descriptor.network_node:
-                service_descriptor.network_node = NetworkNodeDescriptor.from_network_node(
-                    service.network_node
-                )
+            self._update_node_gaom(service, service_descriptor)
 
     def _report_status_change(self) -> None:
         """Emit message with full state update to state queue."""
