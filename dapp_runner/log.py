@@ -3,9 +3,6 @@ import logging
 import warnings
 from typing import Optional
 
-from yapapi import __version__ as yapapi_version
-from yapapi.log import _YagnaDatetimeFormatter  # noqa
-
 logger = logging.getLogger(__name__)
 
 LOG_CRITICAL = "CRITICAL"
@@ -47,6 +44,8 @@ def enable_logger(
     By default, it outputs `INFO` level logs to stderr and `DEBUG` level logs
     for `yapapi` and the REST APIs to the specified log file.
     """
+    from yapapi import __version__ as yapapi_version
+    from yapapi.log import _YagnaDatetimeFormatter
 
     api_log_level = api_log_level or file_log_level
 
