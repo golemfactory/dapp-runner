@@ -45,10 +45,15 @@ async def resolve_manifest(desc: PayloadDescriptor):
 
     """
 
-    if "manifest" not in desc.params and "manifest_generate" in desc.params:
+    if "manifest" in desc.params and "manifest_generate" in desc.params:
+        raise RunnerError(
+            "Ambiguous payload definition: "
+            f"both `manifest` and `manifest_generate` specified. ({desc.params})"
+        )
+    elif "manifest" not in desc.params and "manifest_generate" in desc.params:
         manifest_generate_params = desc.params.pop("manifest_generate")
-        logger.debug("Generating a manifest implicitly, params: %s", generated_manifest_params)
-        manifest_obj = await Manifest.generate(**generated_manifest_params)
+        logger.debug("Generating a manifest implicitly, params: %s", manifest_generate_params)
+        manifest_obj = await Manifest.generate(**manifest_generate_params)
 
         manifest = json.dumps(manifest_obj.dict(by_alias=True))
 
