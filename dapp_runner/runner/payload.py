@@ -46,7 +46,7 @@ async def resolve_manifest(desc: PayloadDescriptor):
     """
 
     if "manifest" not in desc.params and "manifest_generate" in desc.params:
-        generated_manifest_params = desc.params.pop("manifest_generate")
+        manifest_generate_params = desc.params.pop("manifest_generate")
         logger.debug("Generating a manifest implicitly, params: %s", generated_manifest_params)
         manifest_obj = await Manifest.generate(**generated_manifest_params)
 
