@@ -313,7 +313,6 @@ class Runner:
             if ({self._desired_app_state} == all_states) and (
                 len(dapp_state) == len(self.dapp.nodes)
             ):
-
                 return ServiceState.running
 
             return ServiceState.starting
