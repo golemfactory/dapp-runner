@@ -238,7 +238,7 @@ class Runner:
             for cluster_id, cluster in self.clusters.items()
         }
 
-        missing_nodes = set(self.dapp.nodes.keys()).difference(cluster_states.keys())
+        missing_nodes = set(self.dapp.nodes) - set(cluster_states)
 
         cluster_states.update({node_id: {} for node_id in missing_nodes})
 
