@@ -230,17 +230,19 @@ class Runner:
         Clusters and their Service instances comprising the dapp.
         """
 
-        return {
+        cluster_states = {
             cluster_id: {
                 instance_index: instance.state
                 for instance_index, instance in enumerate(cluster.instances)
             }
-            if cluster
-            else {}
-            for cluster_id, cluster in [
-                (cluster_id, self.clusters.get(cluster_id)) for cluster_id in self.dapp.nodes.keys()
-            ]
+            for cluster_id, cluster in self.clusters.items()
         }
+
+        missing_nodes = set(self.dapp.nodes.keys()).difference(cluster_states.keys())
+
+        cluster_states.update({node_id: {} for node_id in missing_nodes})
+
+        return cluster_states
 
     @property
     def dapp_started(self) -> bool:
