@@ -11,7 +11,7 @@ def load_yamls(*yaml_paths: Path) -> Dict[str, Any]:
     """Load the provided YAML files, merging their contents in a deep manner.
 
     The order of the files is relevant, that is: the first YAML is considered the base.
-    All of the remaining files are loaded one by one and deeply merged into the base.
+    All the remaining files are loaded one by one and deeply merged into the base.
 
     Returns a dict representing the result of all YAML files merged into the first one.
     """
