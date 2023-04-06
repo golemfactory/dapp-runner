@@ -1,5 +1,6 @@
 """Pytest configuration file containing the utilities for Dapp Runner unit tests."""
 import asyncio
+from typing import Tuple
 from unittest import mock
 
 import pytest
@@ -11,7 +12,7 @@ class Utils:
     """Utilities for Dapp Runner tests."""
 
     @staticmethod
-    def verify_error(expected_error, actual_error):
+    def verify_error(expected_error: Tuple[type, str], actual_error):
         """Verify expected error vs an actual error.
 
         Example usage:
@@ -32,8 +33,8 @@ class Utils:
         if actual_error:
             if not expected_error:
                 raise
-            assert str(expected_error) in str(actual_error)
-            assert type(actual_error) == type(expected_error)
+            assert expected_error[1] in str(actual_error)
+            assert type(actual_error) == expected_error[0]
 
 
 @pytest.fixture

@@ -1,5 +1,6 @@
 """Tests for the Dapp descriptor."""
 import pytest
+from pydantic import ValidationError
 
 from dapp_runner.descriptor import DappDescriptor, DescriptorError
 from dapp_runner.descriptor.dapp import (
@@ -98,7 +99,7 @@ from dapp_runner.descriptor.dapp import (
                     }
                 },
             },
-            DescriptorError("Undefined payload: `other`"),
+            (DescriptorError, "Undefined payload: `other`"),
         ),
         (
             {
@@ -111,7 +112,7 @@ from dapp_runner.descriptor.dapp import (
                     }
                 },
             },
-            TypeError("__init__() missing "),
+            (ValidationError, "payloads\n  field required"),
         ),
         (
             {
@@ -131,20 +132,20 @@ from dapp_runner.descriptor.dapp import (
                     }
                 },
             },
-            DescriptorError("Undefined network: `missing`"),
+            (DescriptorError, "Undefined network: `missing`"),
         ),
         (
             {
                 "unsupported": {},
             },
-            DescriptorError("Unexpected keys: `{'unsupported'}"),
+            (ValidationError, "unsupported\n  extra fields not permitted"),
         ),
     ],
 )
 def test_dapp_descriptor(descriptor_dict, error, test_utils):
     """Test whether the Dapp descriptor loads correctly."""
     try:
-        dapp = DappDescriptor.load(descriptor_dict)
+        dapp = DappDescriptor(**descriptor_dict)
         payload = list(dapp.payloads.values())[0]
         service = list(dapp.nodes.values())[0]
         assert isinstance(payload, PayloadDescriptor)
@@ -168,7 +169,7 @@ def _test_proxy_descriptor(
     implicit_vpn,
 ):
     try:
-        dapp = DappDescriptor.load(descriptor_dict)
+        dapp = DappDescriptor(**descriptor_dict)
         service = list(dapp.nodes.values())[0]
         proxy = getattr(service, proxy_property)
         assert isinstance(proxy, proxy_class)
@@ -208,7 +209,7 @@ def _test_proxy_descriptor(
                     }
                 },
             },
-            [PortMapping(25, 2525)],
+            [PortMapping(remote_port=25, local_port=2525)],
             None,
             False,
         ),
@@ -228,7 +229,7 @@ def _test_proxy_descriptor(
                     }
                 },
             },
-            [PortMapping(80)],
+            [PortMapping(remote_port=80)],
             None,
             False,
         ),
@@ -244,7 +245,7 @@ def _test_proxy_descriptor(
                     }
                 },
             },
-            [PortMapping(80), PortMapping(1234)],
+            [PortMapping(remote_port=80), PortMapping(remote_port=1234)],
             None,
             False,
         ),
@@ -264,7 +265,7 @@ def _test_proxy_descriptor(
                     }
                 },
             },
-            [PortMapping(80)],
+            [PortMapping(remote_port=80)],
             None,
             True,
         ),
@@ -302,7 +303,7 @@ def test_http_proxy_descriptor(test_utils, descriptor_dict, port_mappings, error
                     }
                 },
             },
-            [PortMapping(25, 2525)],
+            [PortMapping(remote_port=25, local_port=2525)],
             None,
             False,
         ),
@@ -322,7 +323,7 @@ def test_http_proxy_descriptor(test_utils, descriptor_dict, port_mappings, error
                     }
                 },
             },
-            [PortMapping(80)],
+            [PortMapping(remote_port=80)],
             None,
             False,
         ),
@@ -338,7 +339,7 @@ def test_http_proxy_descriptor(test_utils, descriptor_dict, port_mappings, error
                     }
                 },
             },
-            [PortMapping(80), PortMapping(1234)],
+            [PortMapping(remote_port=80), PortMapping(remote_port=1234)],
             None,
             False,
         ),
@@ -358,7 +359,7 @@ def test_http_proxy_descriptor(test_utils, descriptor_dict, port_mappings, error
                     }
                 },
             },
-            [PortMapping(80)],
+            [PortMapping(remote_port=80)],
             None,
             True,
         ),
@@ -425,7 +426,7 @@ def test_tcp_proxy_descriptor(test_utils, descriptor_dict, port_mappings, error,
 )
 def test_manifest_payload(descriptor_dict, implicit_manifest):
     """Test whether `manifest_support` is implicitly added to the capabilities list."""
-    dapp = DappDescriptor.load(descriptor_dict)
+    dapp = DappDescriptor(**descriptor_dict)
     payload = list(dapp.payloads.values())[0]
     if implicit_manifest:
         assert VM_PAYLOAD_CAPS_KWARG in payload.params
@@ -445,7 +446,7 @@ def test_manifest_payload(descriptor_dict, implicit_manifest):
                 "payload": "foo",
                 "init": ["test", "blah"],
             },
-            [CommandDescriptor("run", {"args": ["test", "blah"]})],
+            [CommandDescriptor(cmd="run", params={"args": ["test", "blah"]})],
             None,
         ),
         # check the empty init default
@@ -463,8 +464,8 @@ def test_manifest_payload(descriptor_dict, implicit_manifest):
                 "init": [["test", "blah"], ["other command"]],
             },
             [
-                CommandDescriptor("run", {"args": ["test", "blah"]}),
-                CommandDescriptor("run", {"args": ["other command"]}),
+                CommandDescriptor(cmd="run", params={"args": ["test", "blah"]}),
+                CommandDescriptor(cmd="run", params={"args": ["other command"]}),
             ],
             None,
         ),
@@ -475,7 +476,7 @@ def test_manifest_payload(descriptor_dict, implicit_manifest):
                 "init": [{"run": ["test", "blah"]}],
             },
             [
-                CommandDescriptor("run", {"args": ["test", "blah"]}),
+                CommandDescriptor(cmd="run", params={"args": ["test", "blah"]}),
             ],
             None,
         ),
@@ -491,7 +492,7 @@ def test_manifest_payload(descriptor_dict, implicit_manifest):
                 ],
             },
             None,
-            DescriptorError("Cannot parse the command descriptor"),
+            (DescriptorError, "Cannot parse the command descriptor"),
         ),
         # check the regular syntax
         (
@@ -503,8 +504,8 @@ def test_manifest_payload(descriptor_dict, implicit_manifest):
                 ],
             },
             [
-                CommandDescriptor("deploy", {"kwargs": {"foo": "bar"}}),
-                CommandDescriptor("run", {"args": ["test", "command"]}),
+                CommandDescriptor(cmd="deploy", params={"kwargs": {"foo": "bar"}}),
+                CommandDescriptor(cmd="run", params={"args": ["test", "command"]}),
             ],
             None,
         ),
@@ -513,7 +514,7 @@ def test_manifest_payload(descriptor_dict, implicit_manifest):
 def test_service_init(test_utils, descriptor_dict, expected_init, error):
     """Test the ServiceDescriptor's init field."""
     try:
-        service = ServiceDescriptor.load(descriptor_dict)
+        service = ServiceDescriptor(**descriptor_dict)
         assert isinstance(service, ServiceDescriptor)
         assert service.init == expected_init
 
@@ -576,7 +577,7 @@ def test_service_init(test_utils, descriptor_dict, expected_init, error):
                 "payloads": {"foo": {"runtime": "vm"}},
                 "nodes": {"http": {"payload": "foo", "init": [], "depends_on": ["bar"]}},
             },
-            DescriptorError('Unmet `depends_on`: "bar" in service: "http"'),
+            (DescriptorError, 'Unmet `depends_on`: "bar" in service: "http"'),
             [],
         ),
         (
@@ -587,7 +588,7 @@ def test_service_init(test_utils, descriptor_dict, expected_init, error):
                     "db": {"payload": "foo", "init": [], "depends_on": ["http"]},
                 },
             },
-            DescriptorError("Service definition contains a circular `depends_on`."),
+            (DescriptorError, "Service definition contains a circular `depends_on`."),
             [],
         ),
     ),
@@ -595,7 +596,7 @@ def test_service_init(test_utils, descriptor_dict, expected_init, error):
 def test_depends_on(test_utils, descriptor_dict, error, expected_priority):
     """Test the `depends_on` parameter."""
     try:
-        dapp = DappDescriptor.load(descriptor_dict)
+        dapp = DappDescriptor(**descriptor_dict)
         nodes_priority = [name for name, service in dapp.nodes_prioritized()]
         assert nodes_priority == expected_priority
     except Exception as e:  # noqa

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dapp-runner"
-version = "0.1.1"
+version = "0.2.0-dev"
 description = "Golem dapp-runner - a high-level interface for running decentralized applications using the Golem Network."
 authors = ["Golem Factory <contact@golem.network>"]
 license = "LGPL-3.0"
@@ -37,7 +37,10 @@ pyyaml = "^5.0"  # requires bump to goth's dependencies https://github.com/golem
 shortuuid = "^1.0"
 ansicolors = "^1.1.8"
 networkx = "^2.8"
-yapapi = "^0.10.0"
+yapapi = { git = "https://github.com/golemfactory/yapapi.git", branch = "master" }
+pydantic = "^1.10.5"
+fastapi = "^0.93.0"
+uvicorn = {extras = ["standard"], version = "^0.21.0"}
 
 [tool.poetry.group.dev.dependencies]
 setuptools = "*"  # implicitly required by liccehck
@@ -58,13 +61,6 @@ pytest-mock = "^3.10.0"
 factory-boy = "^3.2.1"
 isort = "^5.11.4"
 
-[tool.poetry.group.tests_integration]
-optional = true
-
-[tool.poetry.group.tests_integration.dependencies]
-goth = "^0.14.0"
-requests = "^2.28.2"
-
 [tool.poetry.scripts]
 dapp-runner = "dapp_runner.__main__:_cli"
 
@@ -78,14 +74,21 @@ checks_typing  = {cmd = "mypy --install-types --non-interactive --ignore-missing
 checks_license = {sequence = ["_checks_license_export", "_checks_license_verify"], help = "Run only license compatibility checks"}
 _checks_license_export = "poetry export -f requirements.txt -o .requirements.txt"
 _checks_license_verify = "liccheck -r .requirements.txt"
+
 format = {sequence = ["_format_autoflake", "_format_isort", "_format_black"], help = "Run code auto formatting"}
 _format_autoflake = "autoflake ."
 _format_isort = "isort ."
 _format_black = "black ."
+
 tests = {sequence = ["tests_unit"], help = "Run all available tests"}
 tests_unit = {cmd = "pytest --cov --cov-report html --cov-report term -sv tests/unit", help = "Run only unit tests"}
-tests_integration_assets = "python -m goth create-assets tests/goth_tests/assets"
-tests_integration = "pytest -svx tests/goth_tests --disable-pytest-warnings --config-override docker-compose.build-environment.use-prerelease=true --config-path tests/goth_tests/assets/goth-config-testing.yml"
+
+tests_integration_init = ["_tests_integration_env", "_tests_integration_requirements", "_tests_integration_assets"]
+_tests_integration_env = "python -m venv .envs/goth"
+_tests_integration_requirements = ".envs/goth/bin/pip install --extra-index-url https://test.pypi.org/simple/ goth==0.14.1 pytest pytest-asyncio pexpect"
+_tests_integration_assets = ".envs/goth/bin/python -m goth create-assets tests/goth_tests/assets"
+tests_integration = ".envs/goth/bin/python -m pytest -svx tests/goth_tests --disable-pytest-warnings --config-override docker-compose.build-environment.use-prerelease=true --config-path tests/goth_tests/assets/goth-config-testing.yml"
+
 
 [tool.liccheck]
 authorized_licenses = [

@@ -17,6 +17,11 @@ jobs:
     name: Run integration tests
     runs-on: [goth, ubuntu-22.04]
     steps:
+      - name: install docker-compose
+        run: |
+          sudo curl -L "https://github.com/docker/compose/releases/download/1.28.4/docker-compose-Linux-x86_64" -o /usr/local/bin/docker-compose
+          sudo chmod a+x /usr/local/bin/docker-compose
+
       - name: Checkout
         uses: actions/checkout@v3
         with:
@@ -33,7 +38,7 @@ jobs:
       - name: Install dependencies
         run: |
           poetry env use python3.8
-          poetry install -vvv --with tests_integration
+          poetry install -vvv
 
       - name: Disconnect Docker containers from default network
         continue-on-error: true
@@ -54,12 +59,13 @@ jobs:
       - name: Log in to GitHub Docker repository
         run: echo ${{ secrets.GITHUB_TOKEN }} | docker login docker.pkg.github.com -u ${{github.actor}} --password-stdin
 
+      - name: Initialize the test suite
+        run: poetry run poe tests_integration_init
+
       - name: Run test suite
         env:
           GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          poetry run poe tests_integration_assets
-          poetry run poe tests_integration
+        run: poetry run poe tests_integration
 
       - name: Upload test logs
         uses: actions/upload-artifact@v2
@@ -77,6 +83,6 @@ jobs:
       - name: Remove poetry virtual env
         if: always()
         # Python version below should agree with the version set up by this job.
-        # In future we'll be able to use the `--all` flag here to remove envs for
+        # In the future we'll be able to use the `--all` flag here to remove envs for
         # all Python versions (https://github.com/python-poetry/poetry/issues/3208).
         run: poetry env remove python3.8

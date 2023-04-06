@@ -102,12 +102,12 @@ async def test_service_init(mock_work_context, init, expected_script):
                 "remote_port": 666,
             },
             {},
-            TypeError("__init__() missing 1 required positional argument: 'init'"),
+            (TypeError, "__init__() missing 1 required positional argument: 'init'"),
         ),
         (
             {"init": [], "unknown_kwarg": "im-invalid"},
             {},
-            TypeError("__init__() got an unexpected keyword argument 'unknown_kwarg'"),
+            (TypeError, "__init__() got an unexpected keyword argument 'unknown_kwarg'"),
         ),
     ],
 )
@@ -158,7 +158,7 @@ SOME_NETWORK: Final = Network(Mock(), "192.168.0.1/24", "192.168.0.1")
             {},
             None,
             {},
-            RunnerError('Undefined payload: "foo"'),
+            (RunnerError, 'Undefined payload: "foo"'),
         ),
         # missing network definition
         (
@@ -167,7 +167,7 @@ SOME_NETWORK: Final = Network(Mock(), "192.168.0.1/24", "192.168.0.1")
             {},
             None,
             {},
-            RunnerError('Undefined network: "bar"'),
+            (RunnerError, 'Undefined network: "bar"'),
         ),
         # network service with an http proxy
         (
@@ -175,7 +175,7 @@ SOME_NETWORK: Final = Network(Mock(), "192.168.0.1/24", "192.168.0.1")
                 init=[],
                 payload="foo",
                 network="bar",
-                http_proxy=HttpProxyDescriptor(ports=[PortMapping(80)]),
+                http_proxy=HttpProxyDescriptor(ports=[PortMapping(remote_port=80)]),
             ),
             {"foo": SOME_PAYLOAD},
             {"bar": SOME_NETWORK},

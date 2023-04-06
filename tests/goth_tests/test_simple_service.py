@@ -39,5 +39,5 @@ async def test_simple_service(
         await cmd_monitor.wait_for_pattern(".*Application started.", timeout=180)
         process = await process_monitor.get_process()
         process.send_signal(signal.SIGINT)
-        await cmd_monitor.wait_for_pattern(".*Shutting down ...", timeout=30)
-        await cmd_monitor.wait_for_pattern(".*Shutdown completed", timeout=30)
+        await cmd_monitor.wait_for_pattern(".*SIGINT received", timeout=30)
+        await cmd_monitor.wait_for_pattern(".*Post-SIGINT graceful shutdown completed", timeout=30)
