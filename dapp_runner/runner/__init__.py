@@ -166,13 +166,15 @@ def start_runner(
         try:
             loop.run_until_complete(task)
         except KeyboardInterrupt:
-            logger.info("Shutting down ...")
+            logger.info("SIGINT received, shutting down gracefully ...")
             try:
                 loop.run_until_complete(cancel_and_await_tasks(task))
             except KeyboardInterrupt:
-                logger.info("Shutdown interrupted")
+                logger.info(
+                    "Another SIGINT received, graceful shutdown interrupted, exiting immediately."
+                )
             else:
-                logger.info("Shutdown completed")
+                logger.info("Post-SIGINT graceful shutdown completed.")
         except Exception:  # noqa
             sys.stderr.write(traceback.format_exc())
 
