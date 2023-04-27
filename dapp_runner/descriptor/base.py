@@ -177,4 +177,4 @@ class GaomBase(BaseModel):
 
         serialized = json.dumps(self.dict())
         serialized = re.sub(r"\$\{([\w.\[\]]+)\}", interpolate, serialized)
-        return self.__init__(**json.loads(serialized))
+        return self.__class__(**json.loads(serialized))
