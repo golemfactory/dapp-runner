@@ -11,7 +11,7 @@ from typing import Optional, TextIO
 from colors import cyan, green, magenta
 
 from dapp_runner._util import _print_env_info, cancel_and_await_tasks, json_encoder, utcnow
-from dapp_runner.descriptor import Config, DappDescriptor, DescriptorError
+from dapp_runner.descriptor import Config, DappDescriptor, DescriptorError, manifest
 from dapp_runner.log import enable_logger, log_name_to_level
 
 from .error import RunnerError
@@ -47,12 +47,15 @@ async def _run_app(
     state_f: TextIO,
     commands_f: Optional[TextIO],
     silent=False,
+    skip_manifest_validation=False,
 ):
     """Run the dapp using the Runner."""
     config = Config(**config_dict)
     _update_api_config(config, api_config_dict)
 
     dapp = DappDescriptor(**dapp_dict)
+    if not skip_manifest_validation:
+        manifest.verify_manifests(dapp)
 
     r = Runner(config=config, dapp=dapp)
     _print_env_info(r.golem)
@@ -136,6 +139,7 @@ def start_runner(
     stdout: Optional[Path] = None,
     stderr: Optional[Path] = None,
     silent=False,
+    skip_manifest_validation=False,
 ):
     """Launch the runner in an asyncio loop and wait for its shutdown."""
 
@@ -160,7 +164,16 @@ def start_runner(
 
         loop = asyncio.get_event_loop()
         task = loop.create_task(
-            _run_app(config_dict, api_config_dict, dapp_dict, data_f, state_f, commands_f, silent)
+            _run_app(
+                config_dict,
+                api_config_dict,
+                dapp_dict,
+                data_f,
+                state_f,
+                commands_f,
+                silent,
+                skip_manifest_validation,
+            )
         )
 
         try:
