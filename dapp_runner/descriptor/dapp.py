@@ -4,10 +4,14 @@ import re
 from typing import Any, Dict, Final, List, Optional, Tuple, Union
 
 import networkx
-from pydantic import BaseModel, Field, PrivateAttr, validator
+from pydantic import Field, PrivateAttr, validator
 
+from yapapi.ctx import Activity
+from yapapi.network import Network
+from yapapi.network import Node as NetworkNode
 from yapapi.payload import vm
 
+from .base import GaomBase
 from .error import DescriptorError
 
 NETWORK_DEFAULT_NAME: Final[str] = "default"
@@ -27,7 +31,7 @@ VM_CAPS_MANIFEST: Final[str] = "manifest-support"
 logger = logging.getLogger(__name__)
 
 
-class PayloadDescriptor(BaseModel):
+class PayloadDescriptor(GaomBase):
     """Yapapi Payload descriptor."""
 
     runtime: str
@@ -37,17 +41,18 @@ class PayloadDescriptor(BaseModel):
         extra = "forbid"
 
 
-class PortMapping(BaseModel):
+class PortMapping(GaomBase):
     """Port mapping for a http proxy."""
 
     remote_port: int
     local_port: Optional[int] = None
+    address: Optional[str] = Field(runtime=True)
 
     class Config:  # noqa: D106
         extra = "forbid"
 
 
-class ProxyDescriptor(BaseModel):
+class ProxyDescriptor(GaomBase):
     """Proxy descriptor."""
 
     ports: List[PortMapping]
@@ -57,7 +62,7 @@ class ProxyDescriptor(BaseModel):
 
     @validator("ports", pre=True, each_item=True)
     def __ports__preprocess(cls, v):
-        if isinstance(v, PortMapping):
+        if isinstance(v, PortMapping) or isinstance(v, dict):
             return v
 
         try:
@@ -76,7 +81,7 @@ class SocketProxyDescriptor(ProxyDescriptor):
     """TCP socket proxy descriptor."""
 
 
-class CommandDescriptor(BaseModel):
+class CommandDescriptor(GaomBase):
     """Exeunit command descriptor."""
 
     cmd: str = EXEUNIT_CMD_RUN
@@ -135,11 +140,56 @@ class CommandDescriptor(BaseModel):
                     #    - ["/golem/run/simulate_observations_ctl.py", "--start"]
                     params = {"args": params}
                 return {"cmd": cmd, "params": params}
+        elif isinstance(value, dict) and set(value.keys()) == {"cmd", "params"}:
+            return value
         else:
             raise DescriptorError(f"Cannot parse the command descriptor `{value}`.")
 
 
-class ServiceDescriptor(BaseModel):
+class NetworkNodeDescriptor(GaomBase):
+    """GAOM model reflecting yapapi's network `Node`."""
+
+    node_id: str
+    ip: str
+
+    class Config:  # noqa: D106
+        extra = "forbid"
+
+    @classmethod
+    def from_network_node(cls, network_node: NetworkNode):
+        """Get a NetworkNodeDescriptor based on a `NetworkNode` object."""
+        return cls(
+            node_id=network_node.node_id,
+            ip=network_node.ip,
+        )
+
+
+class ActivityDescriptor(GaomBase):
+    """GAOM model referring to yagna's Activity."""
+
+    id: str
+
+    class Config:  # noqa: D106
+        extra = "forbid"
+
+    @classmethod
+    def from_activity(cls, activity: Activity):
+        """Get an ActivityDescriptor based on an `Activity` object."""
+        return cls(id=activity.id)
+
+
+class AgreementDescriptor(GaomBase):
+    """GAOM model referring to yagna's Agreement."""
+
+    id: str
+    provider_id: str
+    provider_name: str
+
+    class Config:  # noqa: D106
+        extra = "forbid"
+
+
+class ServiceDescriptor(GaomBase):
     """Yapapi Service descriptor."""
 
     payload: str
@@ -149,6 +199,11 @@ class ServiceDescriptor(BaseModel):
     http_proxy: Optional[HttpProxyDescriptor] = None
     tcp_proxy: Optional[SocketProxyDescriptor] = None
     depends_on: List[str] = Field(default_factory=list)
+
+    state: Optional[str] = Field(runtime=True, default=None)
+    network_node: Optional[NetworkNodeDescriptor] = Field(runtime=True, default=None)
+    agreement: Optional[AgreementDescriptor] = Field(runtime=True, default=None)
+    activity: Optional[ActivityDescriptor] = Field(runtime=True, default=None)
 
     class Config:  # noqa: D106
         extra = "forbid"
@@ -162,7 +217,7 @@ class ServiceDescriptor(BaseModel):
         return [CommandDescriptor.canonize_input(v) for v in v]
 
 
-class NetworkDescriptor(BaseModel):
+class NetworkDescriptor(GaomBase):
     """Yapapi network descriptor."""
 
     ip: str = "192.168.0.0/24"
@@ -173,8 +228,18 @@ class NetworkDescriptor(BaseModel):
     class Config:  # noqa: D106
         extra = "forbid"
 
+    @classmethod
+    def from_network(cls, network: Network):
+        """Get a NetworkDescriptor based on yapapi's `Network` object."""
+        return cls(
+            ip=network.network_address,
+            owner_ip=network.owner_ip,
+            mask=network.netmask,
+            gateway=network.gateway,
+        )
 
-class MetaDescriptor(BaseModel):
+
+class MetaDescriptor(GaomBase):
     """Meta descriptor for the app.
 
     Silently ignores unknown fields.
@@ -186,7 +251,7 @@ class MetaDescriptor(BaseModel):
     version: str = ""
 
 
-class DappDescriptor(BaseModel):
+class DappDescriptor(GaomBase):
     """Root dapp descriptor for the Dapp Runner."""
 
     payloads: Dict[str, PayloadDescriptor]
@@ -246,16 +311,8 @@ class DappDescriptor(BaseModel):
             ):
                 payload.params[VM_PAYLOAD_CAPS_KWARG] = [VM_CAPS_MANIFEST]
 
-    def _resolve_dependencies(self):
-        """Resolve instantiation priorities."""
-
-        # initialize the dependency graph and add a root node
-        self._dependency_graph: networkx.DiGraph = networkx.DiGraph()
-        self._dependency_graph.add_node(DEPENDENCY_ROOT)
-
-        # for now, we only care about the order of services,
-        # later we can enhance the dependency graph to
-        # take all the other entities into consideration
+    def _resolve_depends_on(self):
+        """Resolve dependencies from the `depends_on` clause."""
 
         for name, service in self.nodes.items():
             if service.depends_on:
@@ -267,6 +324,18 @@ class DappDescriptor(BaseModel):
                     self._dependency_graph.add_edge(name, depends_name)
             else:
                 self._dependency_graph.add_edge(DEPENDENCY_ROOT, name)
+
+    def _resolve_dependencies(self):
+        """Resolve instantiation priorities."""
+
+        # initialize the dependency graph and add a root node
+        self._dependency_graph: networkx.DiGraph = networkx.DiGraph()
+        self._dependency_graph.add_node(DEPENDENCY_ROOT)
+
+        # for now, we only care about the order of services,
+        # later we can enhance the dependency graph to
+        # take all the other entities into consideration
+        self._resolve_depends_on()
 
         if not networkx.is_directed_acyclic_graph(self._dependency_graph):
             raise DescriptorError("Service definition contains a circular `depends_on`.")

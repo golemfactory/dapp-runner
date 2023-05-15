@@ -22,9 +22,9 @@ class Utils:
                 try:
                     ...
                 except Exception as e:
-                    test_utils.verify_error(error, e)
+                    test_utils.verify_error(expected_error, e)
                 else:
-                    test_utils.verify_error(error, None)
+                    test_utils.verify_error(expected_error, None)
 
         """
 
