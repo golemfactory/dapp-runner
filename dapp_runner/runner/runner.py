@@ -7,6 +7,7 @@ from typing import Dict, Final, List, Optional
 import uvicorn
 
 from yapapi import Golem
+from yapapi.config import ApiConfig
 from yapapi.contrib.service.http_proxy import LocalHttpProxy
 from yapapi.contrib.service.socket_proxy import SocketProxy
 from yapapi.events import CommandExecuted
@@ -16,13 +17,23 @@ from yapapi.services import Cluster, Service, ServiceState
 
 from dapp_runner._util import FreePortProvider, cancel_and_await_tasks, utcnow, utcnow_iso_str
 from dapp_runner.descriptor import Config, DappDescriptor
-from dapp_runner.descriptor.dapp import CommandDescriptor, PortMapping, ServiceDescriptor
+from dapp_runner.descriptor.dapp import (
+    ActivityDescriptor,
+    AgreementDescriptor,
+    CommandDescriptor,
+    NetworkDescriptor,
+    NetworkNodeDescriptor,
+    PortMapping,
+    ServiceDescriptor,
+)
 
 from .payload import get_payload
 from .service import DappService, get_service
 
 LOCAL_HTTP_PROXY_DATA_KEY: Final[str] = "local_proxy_address"
+LOCAL_HTTP_PROXY_URI: Final[str] = "http://localhost"
 LOCAL_TCP_PROXY_DATA_KEY: Final[str] = "local_tcp_proxy_address"
+LOCAL_TCP_PROXY_ADDRESS: Final[str] = "localhost"
 DEPENDENCY_WAIT_INTERVAL: Final[float] = 1.0
 
 logger = logging.getLogger(__name__)
@@ -68,7 +79,7 @@ class Runner:
             subnet_tag=config.yagna.subnet_tag,
             payment_driver=config.payment.driver,
             payment_network=config.payment.network,
-            app_key=config.yagna.app_key,
+            api_config=ApiConfig(app_key=config.yagna.app_key),  # type: ignore
         )
 
         self.clusters = {}
@@ -113,7 +124,10 @@ class Runner:
 
     async def _create_networks(self):
         for name, desc in self.dapp.networks.items():
-            self._networks[name] = await self.golem.create_network(**desc.dict())
+            network = await self.golem.create_network(**desc.dict())
+            self._networks[name] = network
+
+            self.dapp.networks[name] = NetworkDescriptor.from_network(network)
 
     async def _load_payloads(self):
         for name, desc in self.dapp.payloads.items():
@@ -129,7 +143,12 @@ class Runner:
         await proxy.run()
 
         self._http_proxies[name] = proxy
-        self.data_queue.put_nowait({name: {LOCAL_HTTP_PROXY_DATA_KEY: f"http://localhost:{port}"}})
+        proxy_uri = f"{LOCAL_HTTP_PROXY_URI}:{port}"
+        self.data_queue.put_nowait({name: {LOCAL_HTTP_PROXY_DATA_KEY: proxy_uri}})
+
+        # update the GAOM mapping
+        port_mapping.local_port = port
+        port_mapping.address = proxy_uri
 
     async def _start_local_tcp_proxy(self, name: str, service: Service, port_mapping: PortMapping):
         # wait until the service is running before starting the proxy
@@ -141,7 +160,12 @@ class Runner:
         await proxy.run_server(service, port_mapping.remote_port)
 
         self._tcp_proxies[name] = proxy
-        self.data_queue.put_nowait({name: {LOCAL_TCP_PROXY_DATA_KEY: f"localhost:{port}"}})
+        proxy_address = f"{LOCAL_TCP_PROXY_ADDRESS}:{port}"
+        self.data_queue.put_nowait({name: {LOCAL_TCP_PROXY_DATA_KEY: proxy_address}})
+
+        # update the GAOM mapping
+        port_mapping.local_port = port
+        port_mapping.address = proxy_address
 
     async def _start_service(self, service_name: str, service_descriptor: ServiceDescriptor):
         # if this service depends on another, wait until the dependency is up
@@ -153,6 +177,9 @@ class Runner:
                     await asyncio.sleep(DEPENDENCY_WAIT_INTERVAL)
 
         logger.debug("Starting service: %s, descriptor: %s", service_name, service_descriptor)
+
+        service_descriptor.interpolate(self.dapp, is_runtime=True)
+
         cluster_class, run_params = await get_service(
             service_name, service_descriptor, self._payloads, self._networks
         )
@@ -180,7 +207,7 @@ class Runner:
             s = cluster.instances[idx]
             self._tasks.extend(
                 [
-                    asyncio.create_task(self._listen_state_queue(s)),
+                    asyncio.create_task(self._listen_state_queue(s, service_descriptor)),
                     asyncio.create_task(self._listen_data_queue(service_name, idx, s)),
                 ]
             )
@@ -274,13 +301,47 @@ class Runner:
             ]
         )
 
-    async def _listen_state_queue(self, service: DappService):
+    def _update_node_gaom(self, service: DappService, service_descriptor: ServiceDescriptor):
+        # update the state in the GAOM
+        service_descriptor.state = service.state.identifier
+
+        # update the network node if possible
+        if service.network_node and not service_descriptor.network_node:
+            service_descriptor.network_node = NetworkNodeDescriptor.from_network_node(
+                service.network_node
+            )
+
+        # update the activity if possible
+        if service._ctx:  # noqa
+            ctx = service._ctx  # noqa
+            if not service_descriptor.activity:
+                service_descriptor.activity = ActivityDescriptor.from_activity(
+                    ctx._activity
+                )  # noqa
+
+            if not service_descriptor.agreement:
+                service_descriptor.agreement = AgreementDescriptor(
+                    id=ctx._agreement.id,  # noqa
+                    provider_id=ctx.provider_id,
+                    provider_name=ctx.provider_name,
+                )
+
+        # reset the GAOM state on "pending"
+        if service_descriptor.state == "pending":
+            service_descriptor.network_node = None
+            service_descriptor.activity = None
+            service_descriptor.agreement = None
+
+    async def _listen_state_queue(
+        self, service: DappService, service_descriptor: ServiceDescriptor
+    ):
         """On a state change of the instance, update the Runner's state stream."""
         while True:
             await service.state_queue.get()
 
             # on a state change, we're publishing the state of the whole dapp
             self._report_status_change()
+            self._update_node_gaom(service, service_descriptor)
 
     def _report_status_change(self) -> None:
         """Emit message with full state update to state queue."""
