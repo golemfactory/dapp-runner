@@ -122,6 +122,11 @@ def _get_run_dir(run_id: str) -> Path:
     "--silent",
     is_flag=True,
 )
+@click.option(
+    "--skip-manifest-validation",
+    is_flag=True,
+    help="Don't validate and report issues with the manifest, its certificate or signature.",
+)
 def start(
     descriptors: Tuple[Path],
     config: Path,
