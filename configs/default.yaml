@@ -8,7 +8,7 @@ yagna:
 payment:
   budget: 1.0  # GLM
   driver: "erc20"
-  network: "rinkeby"
+  network: "goerli"
 
 #limits:
 #  startup_timeout: 300  # timeout for the provisioning of the app (seconds)
