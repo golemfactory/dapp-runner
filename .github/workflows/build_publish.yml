@@ -14,9 +14,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: 3.9
-      - uses: Gr1N/setup-poetry@v7
-        with:
-          poetry-version: 1.2.0
+      - uses: Gr1N/setup-poetry@v8
       - run: poetry install
       - run: poetry run poe checks
       - run: poetry run poe tests
@@ -31,9 +29,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: 3.9
-      - uses: Gr1N/setup-poetry@v7
-        with:
-          poetry-version: 1.2.0
+      - uses: Gr1N/setup-poetry@v8
       - name: Get git release tag
         run: echo "::set-output name=git-release-tag::dapp-runner $(git describe --tags)"
         id: git_describe
@@ -64,9 +60,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: 3.9
-      - uses: Gr1N/setup-poetry@v7
-        with:
-          poetry-version: 1.2.0
+      - uses: Gr1N/setup-poetry@v8
       - name: Retrieve the built package
         uses: actions/download-artifact@v2
         with:
@@ -88,9 +82,7 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: 3.9
-      - uses: Gr1N/setup-poetry@v7
-        with:
-          poetry-version: 1.2.0
+      - uses: Gr1N/setup-poetry@v8
       - name: Retrieve the built package
         uses: actions/download-artifact@v2
         with:
