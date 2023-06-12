@@ -37,7 +37,7 @@ pyyaml = "^5.0"  # requires bump to goth's dependencies https://github.com/golem
 shortuuid = "^1.0"
 ansicolors = "^1.1.8"
 networkx = "^2.8"
-yapapi = "^0.10.0"
+yapapi = "^0.10.1"
 
 [tool.poetry.group.dev.dependencies]
 setuptools = "*"  # implicitly required by liccehck
