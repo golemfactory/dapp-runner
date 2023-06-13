@@ -1,120 +1,180 @@
-"""Dapp runner descriptor base classes."""
-from dataclasses import Field, dataclass, fields
-from typing import Any, Dict, Generic, List, Type, TypeVar, Union
+"""Golem Application Object Model base."""
+import json
+import re
+import typing
+from typing import List, Optional
+
+from pydantic import BaseModel
 
 
-class DescriptorError(Exception):
-    """Error while loading a Dapp Runner descriptor."""
+class GaomLookupError(Exception):
+    """Error while performing a GAOM key lookup."""
+
+    pass
 
 
-DescriptorType = TypeVar("DescriptorType", bound="BaseDescriptor")
+class GaomRuntimeLookupError(GaomLookupError):
+    """Accessing runtime property when not in runtime."""
+
+    pass
 
 
-@dataclass
-class BaseDescriptor(Generic[DescriptorType]):
-    """Base dapp runner descriptor class.
+class GaomQueryComponent(BaseModel):
+    """A component of a GAOM key loookup query."""
 
-    Descriptor classes serve as factories of the entities defined in the specific
-    part of the descriptor tree.
-    """
+    key: str
+    index: Optional[int]
 
-    @classmethod
-    def _instantiate_value(cls, desc: str, f: Field, value_type, value):
-        try:
-            if type(value_type) is type and issubclass(value_type, BaseDescriptor):
-                return value_type.load(value)
-            elif f.metadata.get("factory"):
-                return f.metadata["factory"](value)
-            elif type(value) is dict:
-                return value_type(**value)
-            else:
-                return value_type(value)
-        except Exception as e:
-            raise DescriptorError(f"{cls.__name__}.{desc}: {e.__class__.__name__}: {str(e)}")
+    def __str__(self):
+        return self.key + str(f"[{self.index}]" if self.index is not None else "")
 
-    @classmethod
-    def _load_dict(cls, f: Field, field_type, descriptor_value: Dict[str, Any]) -> Dict[str, Any]:
-        try:
-            entry_type = getattr(field_type, "__args__", None)[1]  # type: ignore [index] # noqa
-        except (TypeError, IndexError):
-            entry_type = None
 
-        # is the dict's value type defined as a simple type?
-        if type(entry_type) is type:
-            out = {}
-            for k, v in descriptor_value.items():
-                out[k] = cls._instantiate_value(f"{f.name}[{k}]", f, entry_type, v)
-            return out
-        return descriptor_value
+class GaomBase(BaseModel):
+    """Base Golem Application Object Model class."""
 
-    @classmethod
-    def _load_list(cls, f: Field, field_type, descriptor_value: List[Any]) -> List[Any]:
-        try:
-            entry_type = getattr(field_type, "__args__", None)[0]  # type: ignore [index] # noqa
-        except (TypeError, IndexError):
-            entry_type = None
+    @staticmethod
+    def _get_lookup_components(query: str) -> List[GaomQueryComponent]:
+        """Get a list of components of the lookup query."""
 
-        # is the list's value type defined as a simple type?
-        if type(entry_type) is type:
-            out = []
-            for i in range(len(descriptor_value)):
-                v = descriptor_value[i]
-                out.append(cls._instantiate_value(f"{f.name}[{i}]", f, entry_type, v))
-            return out
-        return descriptor_value
-
-    @classmethod
-    def _resolve_field(cls, f: Field, descriptor_value: Any, field_type=None):
-        # field has a load function defined, so we're delegating the responsibility
-        if f.metadata.get("load"):
-            return f.metadata["load"](descriptor_value)
-
-        elif not field_type:
-            field_type = f.type
-
-        # field is a simple type (i.e. not a `typing` type hint)
-        if type(field_type) is type:
-            return cls._instantiate_value(f.name, f, field_type, descriptor_value)
-
-        # field is an Optional -> Union[..., NoneType]
-        elif (
-            getattr(field_type, "__origin__", None) is Union
-            and len(field_type.__args__) == 2
-            and field_type.__args__[1] is type(None)  # noqa
-        ):
-            return cls._resolve_field(f, descriptor_value, field_type.__args__[0])
-
-        # field is a `Dict`
-        elif getattr(field_type, "__origin__", None) is dict:
-            return cls._load_dict(f, field_type, descriptor_value)
-
-        # field is a `List`
-        elif getattr(field_type, "__origin__", None) is list:
-            return cls._load_list(f, field_type, descriptor_value)
-
-        else:
-            raise NotImplementedError(
-                f"{cls.__name__}.{f.name}: Unimplemented handler for {field_type}"
+        components = list()
+        remainder = query
+        while remainder:
+            m = re.match(
+                r"^(?P<key>\w+)(?:\[(?P<index>\d+)])?(?:\.|$)(?P<remainder>.*)?", remainder
             )
+            if m:
+                mdict = m.groupdict()
+                remainder = mdict.pop("remainder", None)
+                if mdict.get("index"):
+                    mdict["index"] = int(mdict["index"])
+                components.append(GaomQueryComponent(**mdict))
+            elif remainder:
+                break
 
-    @classmethod
-    def load(cls: Type[DescriptorType], descriptor_dict: Dict[str, Any]) -> DescriptorType:
-        """Create a new descriptor object from its dictionary representation."""
-        resolved_kwargs: Dict[str, Any] = {}
-        for f in fields(cls):
-            # skip non-init fields
-            if not f.init:
-                continue
+        if remainder:
+            raise ValueError(f"Malformed query: `{query}`")
 
-            # if the fields value is not provided in the descriptor, we're leaving
-            # that to the instantiated class' `__init__` to warn about that
-            if f.name not in descriptor_dict.keys():
-                continue
+        return components
 
-            descriptor_value = descriptor_dict.get(f.name)
-            resolved_kwargs[f.name] = cls._resolve_field(f, descriptor_value)
+    def _perform_generic_lookup(self, components: List[GaomQueryComponent], path: List[str]):
+        """Iterate over GAOM lookup query components to arrive at a desired value."""
 
-        unexpected_keys = set(descriptor_dict.keys()) - set(f.name for f in fields(cls))
-        if unexpected_keys:
-            raise DescriptorError(f"Unexpected keys: `{unexpected_keys}` for `{cls.__name__}`")
-        return cls(**resolved_kwargs)
+        data_dict = self.dict()
+
+        for c in components:
+            path.append(str(c))
+            try:
+                data = data_dict.get(c.key)
+                if c.index is not None:
+                    data = data[c.index]  # type: ignore
+            except (AttributeError, KeyError, IndexError, TypeError):
+                raise GaomLookupError(
+                    f"{self.__class__.__name__}: " f"Cannot retrieve `{'.'.join(path)}`."
+                )
+            data_dict = data  # type: ignore
+
+        return data_dict
+
+    def _perform_gaom_lookup(
+        self, components: List[GaomQueryComponent], path: List[str], is_runtime: bool
+    ):
+        """Recurse through GAOM objects, retrieving subsequent components."""
+        if components:
+            c = components[0]
+            field = c.key
+
+            if self.is_runtime_property(field) and not is_runtime:
+                raise GaomRuntimeLookupError(
+                    f"{self.__class__.__name__}: "
+                    f"Fetching a runtime property `{field}` when not in runtime."
+                )
+
+            _type = typing.get_type_hints(self).get(field)
+            _origin = typing.get_origin(_type)
+
+            if not _origin and c.index is None:
+                # field is a simple type
+                if issubclass(_type, GaomBase):  # type: ignore [arg-type]
+                    gaom_obj: GaomBase = getattr(self, field)
+                    return gaom_obj._perform_gaom_lookup(components[1:], [field], is_runtime)
+            elif _origin == typing.Union and c.index is None:
+                _args = typing.get_args(_type)
+                if (
+                    len(_args) == 2
+                    and issubclass(_args[1], type(None))
+                    and issubclass(_args[0], GaomBase)
+                ):
+                    # field is an Optional GAOM object
+                    gaom_obj: GaomBase = getattr(self, field)  # type: ignore [no-redef]
+                    if gaom_obj:
+                        return gaom_obj._perform_gaom_lookup(components[1:], [field], is_runtime)
+            elif type(_origin) == type:
+                # field is a complex type, e.g. Dict[str, GaomModel]
+                _args = typing.get_args(_type)
+                if (
+                    issubclass(_origin, dict)
+                    and c.index is None
+                    and issubclass(_args[1], GaomBase)
+                    and len(components) > 1
+                ):
+                    # field is a GAOM object dictionary
+                    field_key = components[1].key
+                    if components[1].index is None:
+                        try:
+                            gaom_obj: GaomBase = getattr(self, field)[field_key]  # type: ignore [no-redef]  # noqa
+                        except KeyError:
+                            raise GaomLookupError(
+                                f"{self.__class__.__name__}: Cannot retrieve `{field}.{field_key}`"
+                            )
+                        if gaom_obj:
+                            return gaom_obj._perform_gaom_lookup(
+                                components[2:], [field, field_key], is_runtime
+                            )
+                elif (
+                    issubclass(_origin, list)
+                    and c.index is not None
+                    and issubclass(_args[0], GaomBase)
+                ):
+                    # field is a GAOM object list
+                    try:
+                        gaom_obj: GaomBase = getattr(self, field)[c.index]  # type: ignore [no-redef]  # noqa
+                    except IndexError:
+                        raise GaomLookupError(
+                            f"{self.__class__.__name__}: Cannot retrieve `{field}[{c.index}]`"
+                        )
+                    if gaom_obj:
+                        return gaom_obj._perform_gaom_lookup(
+                            components[1:], [f"{field}[{c.index}]"], is_runtime
+                        )
+
+        return self._perform_generic_lookup(components, path)
+
+    def lookup(self, query: str, is_runtime: bool = False):
+        """
+        Perform a lookup on the GAOM object using a textual query.
+
+        Example:
+            ```
+                dapp.lookup("services.db-service[1].network_node.ip")
+            ```
+        """
+        return self._perform_gaom_lookup(self._get_lookup_components(query), list(), is_runtime)
+
+    def is_runtime_property(self, field_name: str) -> bool:
+        """Verify if the given GAOM field is a property set at runtime.
+
+        (as opposed to something that can be part of a descriptor)
+        """
+        return (
+            self.schema().get("properties").get(field_name).get("runtime", False)  # type: ignore [union-attr]  # noqa
+        )
+
+    def interpolate(self, root: "GaomBase", is_runtime: bool = False):
+        """Interpolate GAOM lookups in this descriptor."""
+
+        def interpolate(m):
+            return root.lookup(m.group(1), is_runtime=is_runtime)
+
+        serialized = json.dumps(self.dict())
+        serialized = re.sub(r"\$\{([\w.\[\]]+)\}", interpolate, serialized)
+        return self.__init__(**json.loads(serialized))  # type: ignore [misc]

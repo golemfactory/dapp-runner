@@ -11,6 +11,7 @@ class YagnaConfigFactory(factory.Factory):
         model = YagnaConfig
 
     subnet_tag = "public"
+    app_key = factory.Faker("pystr")
 
 
 class PaymentConfigFactory(factory.Factory):

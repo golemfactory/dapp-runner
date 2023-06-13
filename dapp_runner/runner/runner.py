@@ -1,11 +1,13 @@
 """Main Dapp Runner module."""
 import asyncio
 import logging
-from dataclasses import asdict
 from datetime import datetime
 from typing import Dict, Final, List, Optional
 
+import uvicorn
+
 from yapapi import Golem
+from yapapi.config import ApiConfig
 from yapapi.contrib.service.http_proxy import LocalHttpProxy
 from yapapi.contrib.service.socket_proxy import SocketProxy
 from yapapi.events import CommandExecuted
@@ -15,13 +17,23 @@ from yapapi.services import Cluster, Service, ServiceState
 
 from dapp_runner._util import FreePortProvider, cancel_and_await_tasks, utcnow, utcnow_iso_str
 from dapp_runner.descriptor import Config, DappDescriptor
-from dapp_runner.descriptor.dapp import CommandDescriptor, PortMapping, ServiceDescriptor
+from dapp_runner.descriptor.dapp import (
+    ActivityDescriptor,
+    AgreementDescriptor,
+    CommandDescriptor,
+    NetworkDescriptor,
+    NetworkNodeDescriptor,
+    PortMapping,
+    ServiceDescriptor,
+)
 
 from .payload import get_payload
 from .service import DappService, get_service
 
 LOCAL_HTTP_PROXY_DATA_KEY: Final[str] = "local_proxy_address"
+LOCAL_HTTP_PROXY_URI: Final[str] = "http://localhost"
 LOCAL_TCP_PROXY_DATA_KEY: Final[str] = "local_tcp_proxy_address"
+LOCAL_TCP_PROXY_ADDRESS: Final[str] = "localhost"
 DEPENDENCY_WAIT_INTERVAL: Final[float] = 1.0
 
 logger = logging.getLogger(__name__)
@@ -33,6 +45,8 @@ class Runner:
     Taking the yagna configuration and distributed application descriptor, the Runner
     uses yapapi to run the desired app on Golem and allows interacting with it.
     """
+
+    _instance: Optional["Runner"] = None
 
     config: Config
     dapp: DappDescriptor
@@ -54,6 +68,8 @@ class Runner:
     state_queue: asyncio.Queue
     command_queue: asyncio.Queue
 
+    api_server: Optional[uvicorn.Server]
+
     def __init__(self, config: Config, dapp: DappDescriptor):
         self.config = config
         self.dapp = dapp
@@ -63,7 +79,7 @@ class Runner:
             subnet_tag=config.yagna.subnet_tag,
             payment_driver=config.payment.driver,
             payment_network=config.payment.network,
-            app_key=config.yagna.app_key,
+            api_config=ApiConfig(app_key=config.yagna.app_key),  # type: ignore
         )
 
         self.clusters = {}
@@ -79,10 +95,39 @@ class Runner:
         self._desired_app_state = ServiceState.pending
 
         self._report_status_change()
+        Runner._instance = self
+
+        self.api_server = None
+        self.api_shutdown = False
+
+    @classmethod
+    def get_instance(cls):
+        """Get the Runner instance."""
+        return cls._instance
+
+    async def _serve_api(self):
+        assert self.api_server, "Uninitialized API server, call `_start_api` first."
+        try:
+            await self.api_server.serve()
+        finally:
+            # the uvicorn server seems to consume the SIGINT / CancelledError, so
+            # we have to manually mark its shutdown to trigger shutdown of the
+            # whole runner
+            self.api_shutdown = True
+
+    async def _start_api(self):
+        config = uvicorn.Config(
+            "dapp_runner.api:app", host=self.config.api.host, port=self.config.api.port
+        )
+        self.api_server = uvicorn.Server(config)
+        self._tasks.append(asyncio.create_task(self._serve_api()))
 
     async def _create_networks(self):
         for name, desc in self.dapp.networks.items():
-            self._networks[name] = await self.golem.create_network(**asdict(desc))
+            network = await self.golem.create_network(**desc.dict())
+            self._networks[name] = network
+
+            self.dapp.networks[name] = NetworkDescriptor.from_network(network)
 
     async def _load_payloads(self):
         for name, desc in self.dapp.payloads.items():
@@ -98,7 +143,12 @@ class Runner:
         await proxy.run()
 
         self._http_proxies[name] = proxy
-        self.data_queue.put_nowait({name: {LOCAL_HTTP_PROXY_DATA_KEY: f"http://localhost:{port}"}})
+        proxy_uri = f"{LOCAL_HTTP_PROXY_URI}:{port}"
+        self.data_queue.put_nowait({name: {LOCAL_HTTP_PROXY_DATA_KEY: proxy_uri}})
+
+        # update the GAOM mapping
+        port_mapping.local_port = port
+        port_mapping.address = proxy_uri
 
     async def _start_local_tcp_proxy(self, name: str, service: Service, port_mapping: PortMapping):
         # wait until the service is running before starting the proxy
@@ -110,7 +160,12 @@ class Runner:
         await proxy.run_server(service, port_mapping.remote_port)
 
         self._tcp_proxies[name] = proxy
-        self.data_queue.put_nowait({name: {LOCAL_TCP_PROXY_DATA_KEY: f"localhost:{port}"}})
+        proxy_address = f"{LOCAL_TCP_PROXY_ADDRESS}:{port}"
+        self.data_queue.put_nowait({name: {LOCAL_TCP_PROXY_DATA_KEY: proxy_address}})
+
+        # update the GAOM mapping
+        port_mapping.local_port = port
+        port_mapping.address = proxy_address
 
     async def _start_service(self, service_name: str, service_descriptor: ServiceDescriptor):
         # if this service depends on another, wait until the dependency is up
@@ -122,6 +177,9 @@ class Runner:
                     await asyncio.sleep(DEPENDENCY_WAIT_INTERVAL)
 
         logger.debug("Starting service: %s, descriptor: %s", service_name, service_descriptor)
+
+        service_descriptor.interpolate(self.dapp, is_runtime=True)
+
         cluster_class, run_params = await get_service(
             service_name, service_descriptor, self._payloads, self._networks
         )
@@ -149,7 +207,7 @@ class Runner:
             s = cluster.instances[idx]
             self._tasks.extend(
                 [
-                    asyncio.create_task(self._listen_state_queue(s)),
+                    asyncio.create_task(self._listen_state_queue(s, service_descriptor)),
                     asyncio.create_task(self._listen_data_queue(service_name, idx, s)),
                 ]
             )
@@ -163,10 +221,13 @@ class Runner:
     async def start(self):
         """Start the Golem engine and the dapp."""
 
+        if self.config.api.enabled:
+            await self._start_api()
+
         self.commissioning_time = utcnow()
 
         # explicitly mark that we ultimately want app in "running" state,
-        #  marking app into "starting" sequence.
+        # marking app into "starting" sequence.
         self._desired_app_state = ServiceState.running
 
         await self.golem.start()
@@ -196,13 +257,19 @@ class Runner:
         Clusters and their Service instances comprising the dapp.
         """
 
-        return {
+        cluster_states = {
             cluster_id: {
                 instance_index: instance.state
                 for instance_index, instance in enumerate(cluster.instances)
             }
             for cluster_id, cluster in self.clusters.items()
         }
+
+        missing_nodes = set(self.dapp.nodes) - set(cluster_states)
+
+        cluster_states.update({node_id: {} for node_id in missing_nodes})
+
+        return cluster_states
 
     @property
     def dapp_started(self) -> bool:
@@ -234,13 +301,47 @@ class Runner:
             ]
         )
 
-    async def _listen_state_queue(self, service: DappService):
+    def _update_node_gaom(self, service: DappService, service_descriptor: ServiceDescriptor):
+        # update the state in the GAOM
+        service_descriptor.state = service.state.identifier
+
+        # update the network node if possible
+        if service.network_node and not service_descriptor.network_node:
+            service_descriptor.network_node = NetworkNodeDescriptor.from_network_node(
+                service.network_node
+            )
+
+        # update the activity if possible
+        if service._ctx:  # noqa
+            ctx = service._ctx  # noqa
+            if not service_descriptor.activity:
+                service_descriptor.activity = ActivityDescriptor.from_activity(
+                    ctx._activity
+                )  # noqa
+
+            if not service_descriptor.agreement:
+                service_descriptor.agreement = AgreementDescriptor(
+                    id=ctx._agreement.id,  # noqa
+                    provider_id=ctx.provider_id,
+                    provider_name=ctx.provider_name,
+                )
+
+        # reset the GAOM state on "pending"
+        if service_descriptor.state == "pending":
+            service_descriptor.network_node = None
+            service_descriptor.activity = None
+            service_descriptor.agreement = None
+
+    async def _listen_state_queue(
+        self, service: DappService, service_descriptor: ServiceDescriptor
+    ):
         """On a state change of the instance, update the Runner's state stream."""
         while True:
             await service.state_queue.get()
 
             # on a state change, we're publishing the state of the whole dapp
             self._report_status_change()
+            self._update_node_gaom(service, service_descriptor)
 
     def _report_status_change(self) -> None:
         """Emit message with full state update to state queue."""
@@ -250,20 +351,22 @@ class Runner:
         self.state_queue.put_nowait(
             {
                 "nodes": nodes_states,
-                "app": self._get_app_state_from_nodes(),
+                "app": self._get_app_state_from_nodes(nodes_states),
                 "timestamp": utcnow_iso_str(),
             }
         )
 
-    def _get_app_state_from_nodes(self) -> ServiceState:
+    def _get_app_state_from_nodes(
+        self, dapp_state: Optional[Dict[str, Dict[int, ServiceState]]] = None
+    ) -> ServiceState:
         """Return general application state based on all instances states."""
         # Collect nested node states into simple unique collection of state values
 
-        dapp_state = self.dapp_state
+        dapp_state = dapp_state or self.dapp_state
 
         all_states = set(state for node in dapp_state.values() for state in node.values())
 
-        # If we want dapp to be running handle other states as starting
+        # If we want dapp to be running -> handle other states as starting
         if self._desired_app_state == ServiceState.running:
             # Check node-to-state parity because of node dependency,
             #  states gradually rolls out
@@ -271,7 +374,6 @@ class Runner:
             if ({self._desired_app_state} == all_states) and (
                 len(dapp_state) == len(self.dapp.nodes)
             ):
-
                 return ServiceState.running
 
             return ServiceState.starting
@@ -340,7 +442,7 @@ class Runner:
                     continue
 
                 logger.debug("Creating runtime command: %s", cmd_def)
-                cmd = CommandDescriptor.load(cmd_def)
+                cmd = CommandDescriptor(**cmd_def)
                 service.command_queue.put_nowait(cmd)
 
     def _is_cluster_state(self, cluster_id: str, state: ServiceState) -> bool:

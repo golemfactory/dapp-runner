@@ -11,7 +11,7 @@ from typing import Optional, TextIO
 from colors import cyan, green, magenta
 
 from dapp_runner._util import _print_env_info, cancel_and_await_tasks, json_encoder, utcnow
-from dapp_runner.descriptor import Config, DappDescriptor, DescriptorError
+from dapp_runner.descriptor import Config, DappDescriptor, DescriptorError, manifest
 from dapp_runner.log import enable_logger, log_name_to_level
 
 from .error import RunnerError
@@ -31,17 +31,31 @@ def _running_time_elapsed(
     return bool(time_started and max_running_time and utcnow() > time_started + max_running_time)
 
 
+def _update_api_config(config: Config, api_config_dict: dict):
+    arg_field_map = {"enable_api": "enabled", "api_host": "host", "api_port": "port"}
+
+    for k, v in api_config_dict.items():
+        if v is not None:
+            setattr(config.api, arg_field_map[k], v)
+
+
 async def _run_app(
     config_dict: dict,
+    api_config_dict: dict,
     dapp_dict: dict,
     data_f: TextIO,
     state_f: TextIO,
     commands_f: Optional[TextIO],
     silent=False,
+    skip_manifest_validation=False,
 ):
     """Run the dapp using the Runner."""
-    config = Config.load(config_dict)
-    dapp = DappDescriptor.load(dapp_dict)
+    config = Config(**config_dict)
+    _update_api_config(config, api_config_dict)
+
+    dapp = DappDescriptor(**dapp_dict)
+    if not skip_manifest_validation:
+        manifest.verify_manifests(dapp)
 
     r = Runner(config=config, dapp=dapp)
     _print_env_info(r.golem)
@@ -83,16 +97,24 @@ async def _run_app(
     time_started: Optional[datetime] = None
 
     try:
-        while not r.dapp_started and utcnow() < r.commissioning_time + startup_timeout:
+        while (
+            not r.dapp_started
+            and not r.api_shutdown
+            and utcnow() < r.commissioning_time + startup_timeout
+        ):
             await asyncio.sleep(1)
 
-        if not r.dapp_started:
+        if not r.api_shutdown and not r.dapp_started:
             raise Exception(f"Failed to start instances before {startup_timeout} elapsed.")
 
         time_started = utcnow()
         logger.info("Application started.")
 
-        while r.dapp_started and not _running_time_elapsed(time_started, max_running_time):
+        while (
+            r.dapp_started
+            and not r.api_shutdown
+            and not _running_time_elapsed(time_started, max_running_time)
+        ):
             await asyncio.sleep(1)
     finally:
         if _running_time_elapsed(time_started, max_running_time):
@@ -105,6 +127,7 @@ async def _run_app(
 
 def start_runner(
     config_dict: dict,
+    api_config_dict: dict,
     dapp_dict: dict,
     data: Path,
     state: Path,
@@ -116,6 +139,7 @@ def start_runner(
     stdout: Optional[Path] = None,
     stderr: Optional[Path] = None,
     silent=False,
+    skip_manifest_validation=False,
 ):
     """Launch the runner in an asyncio loop and wait for its shutdown."""
 
@@ -140,19 +164,30 @@ def start_runner(
 
         loop = asyncio.get_event_loop()
         task = loop.create_task(
-            _run_app(config_dict, dapp_dict, data_f, state_f, commands_f, silent)
+            _run_app(
+                config_dict,
+                api_config_dict,
+                dapp_dict,
+                data_f,
+                state_f,
+                commands_f,
+                silent,
+                skip_manifest_validation,
+            )
         )
 
         try:
             loop.run_until_complete(task)
         except KeyboardInterrupt:
-            logger.info("Shutting down ...")
+            logger.info("SIGINT received, shutting down gracefully ...")
             try:
                 loop.run_until_complete(cancel_and_await_tasks(task))
             except KeyboardInterrupt:
-                logger.info("Shutdown interrupted")
+                logger.info(
+                    "Another SIGINT received, graceful shutdown interrupted, exiting immediately."
+                )
             else:
-                logger.info("Shutdown completed")
+                logger.info("Post-SIGINT graceful shutdown completed.")
         except Exception:  # noqa
             sys.stderr.write(traceback.format_exc())
 
@@ -160,7 +195,7 @@ def start_runner(
 def verify_dapp(dapp_dict: dict):
     """Verify the passed app descriptor schema and report any encountered errors."""
     try:
-        dapp = DappDescriptor.load(dapp_dict)
+        dapp = DappDescriptor(**dapp_dict)
         print(dapp)
     except DescriptorError as e:
         print(e)
