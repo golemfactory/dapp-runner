@@ -112,6 +112,7 @@ async def _run_app(
 
         while (
             r.dapp_started
+            and not r.suspend_requested
             and not r.api_shutdown
             and not _running_time_elapsed(time_started, max_running_time)
         ):
@@ -120,9 +121,16 @@ async def _run_app(
         if _running_time_elapsed(time_started, max_running_time):
             logger.info("Maximum running time: %s elapsed.", max_running_time)
 
-        logger.info("Stopping the application...")
-        await r.stop()
+        if not r.suspend_requested:
+            logger.info("Stopping the application...")
+            await r.stop()
+        else:
+            logger.info("Suspending the application...")
+            await r.suspend()
+
+        logger.info("Stopping streamer...")
         await streamer.stop()
+        logger.info("Streamer stopped...")
 
 
 def start_runner(

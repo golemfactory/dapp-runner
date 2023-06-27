@@ -60,6 +60,7 @@ class Runner:
     _networks: Dict[str, Network]
     _tasks: List[asyncio.Task]
     _startup_finished: bool
+    suspend_requested: bool
 
     # TODO: Introduce ApplicationState instead of reusing ServiceState
     _desired_app_state: ServiceState
@@ -92,6 +93,7 @@ class Runner:
         self.state_queue = asyncio.Queue()
         self.command_queue = asyncio.Queue()
         self._startup_finished = False
+        self.suspend_requested = False
         self._desired_app_state = ServiceState.pending
 
         self._report_status_change()
@@ -384,6 +386,8 @@ class Runner:
                 return ServiceState.terminated
             else:
                 return ServiceState.stopping
+        elif self._desired_app_state == ServiceState.suspended:
+            return ServiceState.suspended
 
         # In other cases return pending
         return ServiceState.pending
@@ -449,6 +453,12 @@ class Runner:
         """Return True if the state of all instances in the cluster is `state`."""
         return all(s.state == state for s in self.clusters[cluster_id].instances)
 
+    async def _stop_proxies(self):
+        """Stop the HTTP and TCP proxies."""
+        proxy_tasks = [p.stop() for p in self._http_proxies.values()]
+        proxy_tasks.extend([p.stop() for p in self._tcp_proxies.values()])
+        await asyncio.gather(*proxy_tasks)
+
     async def stop(self):
         """Stop the dapp and the Golem engine."""
         service_tasks: List[asyncio.Task] = []
@@ -456,9 +466,7 @@ class Runner:
         # explicitly mark that we want dapp in terminated state
         self._desired_app_state = ServiceState.terminated
 
-        proxy_tasks = [p.stop() for p in self._http_proxies.values()]
-        proxy_tasks.extend([p.stop() for p in self._tcp_proxies.values()])
-        await asyncio.gather(*proxy_tasks)
+        await self._stop_proxies()
 
         for cluster in self.clusters.values():
             cluster.stop()
@@ -470,6 +478,30 @@ class Runner:
         await asyncio.gather(*[n.remove() for n in networks])
 
         await self.golem.stop()
+
+        await asyncio.gather(*service_tasks)
+
+        await cancel_and_await_tasks(*self._tasks)
+
+    def request_suspend(self):
+        self.suspend_requested = True
+
+    async def suspend(self):
+        """Suspend the application and stop the Golem engine, without killing the activities."""
+        service_tasks: List[asyncio.Task] = []
+
+        # explicitly mark that we want dapp in terminated state
+        self._desired_app_state = ServiceState.suspended
+
+        await self._stop_proxies()
+
+        for cluster in self.clusters.values():
+            cluster.suspend()
+
+            for s in cluster.instances:
+                service_tasks.extend(s._tasks)
+
+        await self.golem.stop(wait_for_payments=False)
 
         await asyncio.gather(*service_tasks)
 

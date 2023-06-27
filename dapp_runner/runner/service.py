@@ -95,7 +95,7 @@ class DappService(Service):
             yield script
 
     async def _wait_for_termination(self):
-        while self._previous_state != ServiceState.terminated:
+        while self._previous_state not in {ServiceState.terminated, ServiceState.suspended}:
             await asyncio.sleep(1.0)
             self._report_state_change()
 
