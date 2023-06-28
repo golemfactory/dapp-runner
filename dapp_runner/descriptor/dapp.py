@@ -7,7 +7,7 @@ import networkx
 from pydantic import Field, PrivateAttr, validator
 
 from yapapi.ctx import Activity
-from yapapi.network import Network
+from yapapi.network import Network, NetworkState
 from yapapi.network import Node as NetworkNode
 from yapapi.payload import vm
 
@@ -224,6 +224,9 @@ class NetworkDescriptor(GaomBase):
     owner_ip: Optional[str] = None
     mask: Optional[str] = None
     gateway: Optional[str] = None
+    network_id: Optional[str] = Field(runtime=True)
+    owner_id: Optional[str] = Field(runtime=True)
+    state: Optional[str] = Field(runtime=True, default=None)
 
     class Config:  # noqa: D106
         extra = "forbid"
@@ -231,11 +234,16 @@ class NetworkDescriptor(GaomBase):
     @classmethod
     def from_network(cls, network: Network):
         """Get a NetworkDescriptor based on yapapi's `Network` object."""
+        network_serialized = network.serialize()
+
         return cls(
             ip=network.network_address,
             owner_ip=network.owner_ip,
             mask=network.netmask,
             gateway=network.gateway,
+            network_id=network_serialized["_network_id"],
+            owner_id=network_serialized["owner_id"],
+            state=network_serialized["state"],
         )
 
 

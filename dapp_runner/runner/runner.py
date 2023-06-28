@@ -126,7 +126,13 @@ class Runner:
 
     async def _create_networks(self):
         for name, desc in self.dapp.networks.items():
-            network = await self.golem.create_network(**desc.dict())
+            network = await self.golem.create_network(
+                **{
+                    k: v for k, v in desc.dict().items() if k in {
+                        "ip", "owner_ip", "mask", "gateway",
+                    }
+                }
+            )
             self._networks[name] = network
 
             self.dapp.networks[name] = NetworkDescriptor.from_network(network)
