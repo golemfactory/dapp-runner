@@ -127,6 +127,11 @@ def _get_run_dir(run_id: str) -> Path:
     is_flag=True,
     help="Don't validate and report issues with the manifest, its certificate or signature.",
 )
+@click.option(
+    "--resume",
+    is_flag=True,
+    help="Treat the app descriptor a suspended application's GAOM state to resume from.",
+)
 def start(
     descriptors: Tuple[Path],
     config: Path,

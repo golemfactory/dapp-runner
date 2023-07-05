@@ -7,7 +7,7 @@ import networkx
 from pydantic import Field, PrivateAttr, validator
 
 from yapapi.ctx import Activity
-from yapapi.network import Network, NetworkState
+from yapapi.network import Network
 from yapapi.network import Node as NetworkNode
 from yapapi.payload import vm
 

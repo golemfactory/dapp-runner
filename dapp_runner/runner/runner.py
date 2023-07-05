@@ -6,6 +6,7 @@ from typing import Dict, Final, List, Optional
 
 import uvicorn
 
+from ya_net.exceptions import ApiException
 from yapapi import Golem
 from yapapi.config import ApiConfig
 from yapapi.contrib.service.http_proxy import LocalHttpProxy
@@ -13,7 +14,7 @@ from yapapi.contrib.service.socket_proxy import SocketProxy
 from yapapi.events import CommandExecuted
 from yapapi.network import Network
 from yapapi.payload import Payload
-from yapapi.services import Cluster, Service, ServiceState
+from yapapi.services import Cluster, Service, ServiceSerialization, ServiceState
 
 from dapp_runner._util import FreePortProvider, cancel_and_await_tasks, utcnow, utcnow_iso_str
 from dapp_runner.descriptor import Config, DappDescriptor
@@ -27,6 +28,7 @@ from dapp_runner.descriptor.dapp import (
     ServiceDescriptor,
 )
 
+from .error import RunnerError
 from .payload import get_payload
 from .service import DappService, get_service
 
@@ -124,15 +126,26 @@ class Runner:
         self.api_server = uvicorn.Server(config)
         self._tasks.append(asyncio.create_task(self._serve_api()))
 
-    async def _create_networks(self):
+    async def _create_networks(self, resume=False):
         for name, desc in self.dapp.networks.items():
-            network = await self.golem.create_network(
-                **{
-                    k: v for k, v in desc.dict().items() if k in {
-                        "ip", "owner_ip", "mask", "gateway",
-                    }
-                }
-            )
+            if resume and desc.network_id:
+                desc_dict = desc.dict()
+                if desc_dict.get("mask"):
+                    desc_dict["ip"] = f"{desc_dict.get('ip')}/{desc_dict.get('mask')}"
+                desc_dict["_network_id"] = desc_dict.pop("network_id")
+                desc_dict["nodes"] = {}
+                try:
+                    network = await self.golem.resume_network(desc_dict)  # type: ignore [arg-type]
+                except ApiException:
+                    raise RunnerError(
+                        f"Could not resume network {desc_dict['_network_id']}. "
+                        "Probably it has already been destroyed.",
+                    )
+            else:
+                network = await self.golem.create_network(
+                    **{k: getattr(desc, k) for k in {"ip", "owner_ip", "mask", "gateway"}}
+                )
+
             self._networks[name] = network
 
             self.dapp.networks[name] = NetworkDescriptor.from_network(network)
@@ -175,7 +188,9 @@ class Runner:
         port_mapping.local_port = port
         port_mapping.address = proxy_address
 
-    async def _start_service(self, service_name: str, service_descriptor: ServiceDescriptor):
+    async def _start_service(
+        self, service_name: str, service_descriptor: ServiceDescriptor, resume=False
+    ):
         # if this service depends on another, wait until the dependency is up
         if service_descriptor.depends_on:
             for depends_name in service_descriptor.depends_on:
@@ -191,7 +206,27 @@ class Runner:
         cluster_class, run_params = await get_service(
             service_name, service_descriptor, self._payloads, self._networks
         )
-        cluster = await self.start_cluster(service_name, cluster_class, run_params)
+        if not resume:
+            cluster = await self.start_cluster(service_name, cluster_class, run_params)
+        else:
+            run_params["instances"] = [
+                ServiceSerialization(
+                    params=params,
+                    activity_id=service_descriptor.activity.id
+                    if service_descriptor.activity
+                    else None,
+                    agreement_id=service_descriptor.agreement.id
+                    if service_descriptor.agreement
+                    else None,
+                    state=service_descriptor.state or ServiceState.pending.value,
+                    network_node=service_descriptor.network_node.dict()
+                    if service_descriptor.network_node
+                    else None,
+                )
+                for params in run_params.pop("instance_params")
+            ]
+            run_params.pop("network_addresses", None)
+            cluster = await self.resume_cluster(service_name, cluster_class, run_params)
 
         # start the tasks for the local proxies so that
         # it doesn't delay the initialization process
@@ -220,13 +255,13 @@ class Runner:
                 ]
             )
 
-    async def _start_services(self):
+    async def _start_services(self, resume=False):
         for service_name, service_descriptor in self.dapp.nodes_prioritized():
-            await self._start_service(service_name, service_descriptor)
+            await self._start_service(service_name, service_descriptor, resume=resume)
 
         self._startup_finished = True
 
-    async def start(self):
+    async def start(self, resume=False):
         """Start the Golem engine and the dapp."""
 
         if self.config.api.enabled:
@@ -240,13 +275,13 @@ class Runner:
 
         await self.golem.start()
 
-        await self._create_networks()
+        await self._create_networks(resume=resume)
         await self._load_payloads()
 
         # we start services in a separate task,
         # so that the service state can be tracked
         # while the dapp is starting
-        self._tasks.append(asyncio.create_task(self._start_services()))
+        self._tasks.append(asyncio.create_task(self._start_services(resume=resume)))
 
         # launch the incoming command processor
         self._tasks.append(asyncio.create_task(self._listen_incoming_command_queue()))
@@ -254,6 +289,12 @@ class Runner:
     async def start_cluster(self, cluster_name, cluster_class, run_params):
         """Start a single cluster for this dapp."""
         cluster = await self.golem.run_service(cluster_class, **run_params)
+        self.clusters[cluster_name] = cluster
+        return cluster
+
+    async def resume_cluster(self, cluster_name, cluster_class, run_params):
+        """Resume control over an existing service cluster."""
+        cluster = await self.golem.resume_service(cluster_class, **run_params)
         self.clusters[cluster_name] = cluster
         return cluster
 
@@ -490,6 +531,7 @@ class Runner:
         await cancel_and_await_tasks(*self._tasks)
 
     def request_suspend(self):
+        """Signal the runner to suspend its operation."""
         self.suspend_requested = True
 
     async def suspend(self):

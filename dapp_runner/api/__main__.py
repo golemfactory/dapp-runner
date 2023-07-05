@@ -1,7 +1,7 @@
 """Dapp Runner API."""
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse, RedirectResponse, PlainTextResponse
 import yaml
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse
 
 from dapp_runner.runner import Runner
 
