@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dapp-runner"
-version = "0.2.0-dev"
+version = "0.3.0-dev"
 description = "Golem dapp-runner - a high-level interface for running decentralized applications using the Golem Network."
 authors = ["Golem Factory <contact@golem.network>"]
 license = "LGPL-3.0"
@@ -37,7 +37,7 @@ pyyaml = "^5.0"  # requires bump to goth's dependencies https://github.com/golem
 shortuuid = "^1.0"
 ansicolors = "^1.1.8"
 networkx = "^2.8"
-yapapi = { git = "https://github.com/golemfactory/yapapi.git", branch = "blue/resume-network" }
+yapapi = { git = "https://github.com/golemfactory/yapapi.git", branch = "master" }
 pydantic = "^1.10.5"
 fastapi = "^0.93.0"
 uvicorn = {extras = ["standard"], version = "^0.21.0"}
