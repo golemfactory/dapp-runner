@@ -17,7 +17,7 @@ from dapp_runner.descriptor.dapp import PAYLOAD_RUNTIME_VM_MANIFEST, PayloadDesc
 
 @pytest.fixture
 @mock.patch(
-    "yapapi.payload.manifest.vm.resolve_package_repo_url",
+    "yapapi.payload.manifest.vm.resolve_package_url",
     mock.AsyncMock(return_value="hash:sha3:some_image_hash:some_image_url"),
 )
 async def minimal_manifest() -> Manifest:
