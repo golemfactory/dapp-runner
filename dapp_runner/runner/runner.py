@@ -12,12 +12,12 @@ from yapapi import Golem
 from yapapi.config import ApiConfig
 from yapapi.contrib.service.http_proxy import LocalHttpProxy
 from yapapi.contrib.service.socket_proxy import SocketProxy
-from yapapi.events import CommandExecuted, ServiceStateChanged
+from yapapi.events import CommandExecuted, Event, ServiceStateChanged
 from yapapi.network import Network
 from yapapi.payload import Payload
 from yapapi.props import com
-from yapapi.strategy import LeastExpensiveLinearPayuMS, DecreaseScoreForUnconfirmedAgreement
 from yapapi.services import Cluster, Service, ServiceSerialization, ServiceState
+from yapapi.strategy import LeastExpensiveLinearPayuMS
 
 from dapp_runner._util import FreePortProvider, cancel_and_await_tasks, utcnow, utcnow_iso_str
 from dapp_runner.descriptor import Config, DappDescriptor
@@ -363,12 +363,16 @@ class Runner:
             ]
         )
 
-    def _detect_failures(self, event: ServiceStateChanged):
-        service = event.service.service
+    def _detect_failures(self, event: Event) -> None:
+        # just a sanity check
+        if not isinstance(event, ServiceStateChanged):
+            return
+
+        service = event.service
         if (
-            self._desired_app_state == ServiceState.running and
-            event.new == ServiceState.terminated and
-            service._ctx
+            self._desired_app_state == ServiceState.running
+            and event.new == ServiceState.terminated
+            and service._ctx
         ):
             self._blacklist.blacklist_node(service._ctx.provider_id)
             logger.info(

@@ -1,12 +1,12 @@
+"""Dapp runner's market strategy implementation."""
 import logging
 from typing import Set
 
-from yapapi import events, rest
-from yapapi.props.builder import DemandBuilder
-
+from yapapi import rest
 from yapapi.strategy.wrapping_strategy import WrappingMarketStrategy
 
 BLACKLISTED_SCORE = -1.0
+
 
 class BlacklistOnFailure(WrappingMarketStrategy):
     """A market strategy wrapper that blacklists providers when they fail an activity."""
@@ -28,7 +28,9 @@ class BlacklistOnFailure(WrappingMarketStrategy):
         """Reject the node if blacklisted, otherwise score the offer using the base strategy."""
 
         if offer.issuer in self._blacklist:
-            self._logger.debug("Rejecting offer %s from a blacklisted node '%s'", offer.id, offer.issuer)
+            self._logger.debug(
+                "Rejecting offer %s from a blacklisted node '%s'", offer.id, offer.issuer
+            )
             return BLACKLISTED_SCORE
 
         score = await self.base_strategy.score_offer(offer)
