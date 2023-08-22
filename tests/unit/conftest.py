@@ -64,6 +64,7 @@ def mock_runner(mocker):
         mocker.patch("yapapi.golem.Golem._get_new_engine", mock.Mock())
         mocker.patch("yapapi.golem.Golem.start", mock.AsyncMock())
         mocker.patch("yapapi.golem.Golem.stop", mock.AsyncMock())
+        mocker.patch("yapapi.event_dispatcher.AsyncEventDispatcher.add_event_consumer", mock.Mock())
 
         return RunnerFactory(**kwargs)
 
