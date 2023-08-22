@@ -2,6 +2,7 @@
 import asyncio
 import logging
 from datetime import datetime
+from decimal import Decimal
 from typing import Dict, Final, List, Optional
 
 import uvicorn
@@ -11,10 +12,12 @@ from yapapi import Golem
 from yapapi.config import ApiConfig
 from yapapi.contrib.service.http_proxy import LocalHttpProxy
 from yapapi.contrib.service.socket_proxy import SocketProxy
-from yapapi.events import CommandExecuted
+from yapapi.events import CommandExecuted, Event, ServiceStateChanged
 from yapapi.network import Network
 from yapapi.payload import Payload
+from yapapi.props import com
 from yapapi.services import Cluster, Service, ServiceSerialization, ServiceState
+from yapapi.strategy import LeastExpensiveLinearPayuMS
 
 from dapp_runner._util import FreePortProvider, cancel_and_await_tasks, utcnow, utcnow_iso_str
 from dapp_runner.descriptor import Config, DappDescriptor
@@ -31,6 +34,7 @@ from dapp_runner.descriptor.dapp import (
 from .error import RunnerError
 from .payload import get_payload
 from .service import DappService, get_service
+from .strategy import BlacklistOnFailure
 
 LOCAL_HTTP_PROXY_DATA_KEY: Final[str] = "local_proxy_address"
 LOCAL_HTTP_PROXY_URI: Final[str] = "http://localhost"
@@ -77,13 +81,22 @@ class Runner:
         self.config = config
         self.dapp = dapp
 
+        self._base_strategy = LeastExpensiveLinearPayuMS(
+            max_fixed_price=Decimal("1.0"),
+            max_price_for={com.Counter.CPU: Decimal("0.2"), com.Counter.TIME: Decimal("0.1")},
+        )
+        self._blacklist: BlacklistOnFailure = BlacklistOnFailure(self._base_strategy)
+
         self.golem = Golem(
             budget=config.payment.budget,
             subnet_tag=config.yagna.subnet_tag,
             payment_driver=config.payment.driver,
             payment_network=config.payment.network,
             api_config=ApiConfig(app_key=config.yagna.app_key),  # type: ignore
+            strategy=self._blacklist,
         )
+
+        self.golem.add_event_consumer(self._detect_failures, [ServiceStateChanged])
 
         self.clusters = {}
         self._payloads = {}
@@ -349,6 +362,24 @@ class Runner:
                 for cluster_id in self.clusters.keys()
             ]
         )
+
+    def _detect_failures(self, event: Event) -> None:
+        # just a sanity check
+        if not isinstance(event, ServiceStateChanged):
+            return
+
+        service = event.service
+        if (
+            self._desired_app_state == ServiceState.running
+            and event.new == ServiceState.terminated
+            and service._ctx
+        ):
+            self._blacklist.blacklist_node(service._ctx.provider_id)
+            logger.info(
+                "Blacklisting %s (%s) after a failure",
+                service._ctx.provider_name,
+                service._ctx.provider_id,
+            )
 
     def _update_node_gaom(self, service: DappService, service_descriptor: ServiceDescriptor):
         # update the state in the GAOM
