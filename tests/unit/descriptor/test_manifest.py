@@ -1,4 +1,5 @@
 """Test `dapp_runner`'s manifest validation support."""
+
 import json
 from base64 import standard_b64encode
 from datetime import datetime, timedelta
@@ -26,11 +27,13 @@ async def minimal_manifest() -> Manifest:
 
 
 async def _get_payload(manifest: Manifest) -> dict:
+    """Get payload with properly encoded manifest."""
+    manifest_json = json.dumps(manifest.dict(by_alias=True))
+    manifest_b64 = standard_b64encode(manifest_json.encode("ascii")).decode("ascii")
+
     return {
         "runtime": PAYLOAD_RUNTIME_VM_MANIFEST,
-        "params": {
-            "manifest": standard_b64encode(json.dumps(manifest.dict(by_alias=True)).encode("ascii"))
-        },
+        "params": {"manifest": manifest_b64},
     }
 
 
