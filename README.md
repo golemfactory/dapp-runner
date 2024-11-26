@@ -41,7 +41,7 @@ To run Golem apps, `dapp-runner` requires a properly configured yagna daemon.
 In the future, you'll be able to provision apps using external supervisor machines
 which will run a yagna daemon on your behalf.
 
-For now, please follow the ["Requestor development: a quick primer"](https://handbook.golem.network/requestor-tutorials/flash-tutorial-of-requestor-development)
+For now, please follow the ["Requestor development: a quickstart"](https://docs.golem.network/docs/creators/python/quickstarts/run-first-task-on-golem)
 tutorial and ensure that your `yagna` is up and running. Only the first part of this
 tutorial is required - you don't need to run the blender example.
 
