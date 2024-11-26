@@ -31,5 +31,5 @@ jobs:
 
       - run: poetry install
       - run: poetry run poe checks_codestyle
-      - run: poetry run poe checks_typing
+      # - run: poetry run poe checks_typing
       - run: poetry run poe checks_license

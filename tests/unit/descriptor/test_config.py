@@ -14,7 +14,7 @@ from dapp_runner.descriptor.config import Config, PaymentConfig, YagnaConfig
                 "payment": {
                     "budget": 1.0,
                     "driver": "erc20",
-                    "network": "rinkeby",
+                    "network": "holesky",
                 },
             },
             None,
@@ -31,7 +31,7 @@ from dapp_runner.descriptor.config import Config, PaymentConfig, YagnaConfig
                 "payment": {
                     "budget": 1.0,
                     "driver": "erc20",
-                    "network": "rinkeby",
+                    "network": "holesky",
                 },
                 "foo": "bar",
             },

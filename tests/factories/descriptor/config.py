@@ -1,20 +1,21 @@
 """Test factories for Dapp Runner's Config descriptor."""
-import factory
+
+from factory import Factory, Faker, SubFactory
 
 from dapp_runner.descriptor.config import Config, PaymentConfig, YagnaConfig
 
 
-class YagnaConfigFactory(factory.Factory):
+class YagnaConfigFactory(Factory):
     """Test factory for `YagnaConfig` objects."""
 
     class Meta:  # noqa
         model = YagnaConfig
 
     subnet_tag = "public"
-    app_key = factory.Faker("pystr")
+    app_key = Faker("pystr")
 
 
-class PaymentConfigFactory(factory.Factory):
+class PaymentConfigFactory(Factory):
     """Test factory for `PaymentConfig` objects."""
 
     class Meta:  # noqa
@@ -22,14 +23,14 @@ class PaymentConfigFactory(factory.Factory):
 
     budget = 1.0
     driver = "erc20"
-    network = "rinkeby"
+    network = "holesky"
 
 
-class ConfigFactory(factory.Factory):
+class ConfigFactory(Factory):
     """Test factory for `Config` objects."""
 
     class Meta:  # noqa
         model = Config
 
-    yagna = factory.SubFactory(YagnaConfigFactory)
-    payment = factory.SubFactory(PaymentConfigFactory)
+    yagna = SubFactory(YagnaConfigFactory)
+    payment = SubFactory(PaymentConfigFactory)
