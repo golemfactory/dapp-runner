@@ -74,9 +74,26 @@ async def get_payload(desc: PayloadDescriptor) -> Payload:
 
     if runtime in runtimes.keys():
         if runtime == PAYLOAD_RUNTIME_VM_MANIFEST:
-            await resolve_manifest(desc)
+            # Create a copy of params to modify
+            params = desc.params.copy()
 
-        payload = runtimes[desc.runtime](**desc.params)
+            # Handle manifest file path
+            if "manifest_path" in params:
+                with open(params["manifest_path"], "rb") as f:
+                    params["manifest"] = f.read()
+                del params["manifest_path"]
+
+            # Handle node descriptor path
+            if "node_descriptor_path" in params:
+                with open(params["node_descriptor_path"]) as f:
+                    params["node_descriptor"] = json.load(f)
+                del params["node_descriptor_path"]
+
+            await resolve_manifest(PayloadDescriptor(runtime=desc.runtime, params=params))
+            payload = runtimes[desc.runtime](**params)
+        else:
+            payload = runtimes[desc.runtime](**desc.params)
+
         if inspect.isawaitable(payload):
             return await payload
         return payload  # type: ignore [return-value]  # noqa
