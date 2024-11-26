@@ -17,11 +17,11 @@ of the multi-service application deployment framework described in
 
 Following features of the framework are currently supported:
 
-* Descriptor "Apply" operation
-* Single-YAML package support
-* Merging descriptor files
-* GAOM explicit dependency syntax
-* GAOM object dependency graph *[currently limited to the services' explicit dependency syntax]*
+-   Descriptor "Apply" operation
+-   Single-YAML package support
+-   Merging descriptor files
+-   GAOM explicit dependency syntax
+-   GAOM object dependency graph _[currently limited to the services' explicit dependency syntax]_
 
 ### Relationship with `dapp-manager`
 
@@ -143,22 +143,22 @@ instance of a simple, static website served with `nginx`:
 
 ```yaml
 payloads:
-  nginx:
-    runtime: "vm"
-    params:
-      image_hash: "16ad039c00f60a48c76d0644c96ccba63b13296d140477c736512127"
+    nginx:
+        runtime: "vm"
+        params:
+            image_hash: "16ad039c00f60a48c76d0644c96ccba63b13296d140477c736512127"
 nodes:
-  http:
-    payload: "nginx"
-    init:
-        - ["/docker-entrypoint.sh"]
-        - ["/bin/chmod", "a+x", "/"]
-        - ["/bin/sh", "-c", 'echo "Hello from inside Golem!" > /usr/share/nginx/html/index.html']
-        - ["/bin/rm", "/var/log/nginx/access.log", "/var/log/nginx/error.log"]
-        - ["/usr/sbin/nginx"]
-    http_proxy:
-      ports:
-        - "80"  # specify just the remote port, allow the local port to be automatically chosen
+    http:
+        payload: "nginx"
+        init:
+            - ["/docker-entrypoint.sh"]
+            - ["/bin/chmod", "a+x", "/"]
+            - ["/bin/sh", "-c", 'echo "Hello from inside Golem!" > /usr/share/nginx/html/index.html']
+            - ["/bin/rm", "/var/log/nginx/access.log", "/var/log/nginx/error.log"]
+            - ["/usr/sbin/nginx"]
+        http_proxy:
+            ports:
+                - "80" # specify just the remote port, allow the local port to be automatically chosen
 ```
 
 #### Web application
@@ -168,38 +168,38 @@ two kinds of services and explicitly connects them within a specified network:
 
 ```yaml
 payloads:
-  db:
-    runtime: "vm"
-    params:
-      image_hash: "85021afecf51687ecae8bdc21e10f3b11b82d2e3b169ba44e177340c"
-  http:
-    runtime: "vm"
-    params:
-      image_hash: "c37c1364f637c199fe710ca62241ff486db92c875b786814c6030aa1"
+    db:
+        runtime: "vm"
+        params:
+            image_hash: "85021afecf51687ecae8bdc21e10f3b11b82d2e3b169ba44e177340c"
+    http:
+        runtime: "vm"
+        params:
+            image_hash: "c37c1364f637c199fe710ca62241ff486db92c875b786814c6030aa1"
 nodes:
-  db:
-    payload: "db"
-    init:
-      - ["/bin/run_rqlite.sh"]
-    network: "default"
-    ip:
-      - "192.168.0.2"
-  http:
-    payload: "http"
-    init:
-      - ["/bin/bash", "-c", "cd /webapp && python app.py --db-address 192.168.0.2 --db-port 4001 initdb"]
-      - ["/bin/bash", "-c", "cd /webapp && python app.py --db-address 192.168.0.2 --db-port 4001 run > /webapp/out 2> /webapp/err &"]
-    http_proxy:
-      ports:
-        - "5000"  # specify just the remote port, allow the local port to be automatically chosen
-    network: "default"
-    ip:
-      - "192.168.0.3"
-    depends_on:
-      - "db"
+    db:
+        payload: "db"
+        init:
+            - ["/bin/run_rqlite.sh"]
+        network: "default"
+        ip:
+            - "192.168.0.2"
+    http:
+        payload: "http"
+        init:
+            - ["/bin/bash", "-c", "cd /webapp && python app.py --db-address 192.168.0.2 --db-port 4001 initdb"]
+            - ["/bin/bash", "-c", "cd /webapp && python app.py --db-address 192.168.0.2 --db-port 4001 run > /webapp/out 2> /webapp/err &"]
+        http_proxy:
+            ports:
+                - "5000" # specify just the remote port, allow the local port to be automatically chosen
+        network: "default"
+        ip:
+            - "192.168.0.3"
+        depends_on:
+            - "db"
 networks:
-  default:
-    ip: "192.168.0.0/24"
+    default:
+        ip: "192.168.0.0/24"
 ```
 
 #### Implicit properties
@@ -212,7 +212,7 @@ Adding a `http_proxy` element to a `nodes` entry, causes the `dapp-runner` to im
 add the `networks` object with a default of a single IPv4 network. Additionally, it adds
 the `vpn` capability to the requested parameters of the deployed `vm` runtime.
 
-***Note:*** The `networks` and `capabilities` objects will only be implicitly added if
+**_Note:_** The `networks` and `capabilities` objects will only be implicitly added if
 they are not already present in the descriptor. If the application specifies any of
 those objects, it is assumed that the application authors know what they're doing.
 
@@ -221,7 +221,7 @@ those objects, it is assumed that the application authors know what they're doin
 Similarly, specifying the payload as `vm/manifest` implicitly adds `manifest-support` to
 the requested `capabilities` for the runtime.
 
-***Note:*** Again, this is only done if the `payload.params` doesn't already contain the
+**_Note:_** Again, this is only done if the `payload.params` doesn't already contain the
 `capabilities` object.
 
 ## Usage
@@ -259,13 +259,30 @@ as part of the services. Currently it carries the command execution events from
 exescript commands, e.g.:
 
 ```json
-{"db": {"0": [{"command": {"run": {"entry_point": "/bin/run_rqlite.sh", "args": [], "capture": {"stdout": {"stream": {}}, "stderr": {"stream": {}}}}}, "success": true, "stdout": null, "stderr": null}]}}
+{
+    "db": {
+        "0": [
+            {
+                "command": {
+                    "run": {
+                        "entry_point": "/bin/run_rqlite.sh",
+                        "args": [],
+                        "capture": { "stdout": { "stream": {} }, "stderr": { "stream": {} } }
+                    }
+                },
+                "success": true,
+                "stdout": null,
+                "stderr": null
+            }
+        ]
+    }
+}
 ```
 
 and the parameters of any started instances of Local HTTP proxies:
 
 ```json
-{"http": {"local_proxy_address": "http://localhost:8080"}}
+{ "http": { "local_proxy_address": "http://localhost:8080" } }
 ```
 
 The keys in the outermost dictionaries refer to names of service cluster as specified in
@@ -278,7 +295,7 @@ The `state` stream consists of JSON-formatted descriptions of the state of the d
 after each state change, e.g.:
 
 ```json
-{"db": {"0": "running"}, "http": {"0": "starting"}}
+{ "db": { "0": "running" }, "http": { "0": "starting" } }
 ```
 
 Here, again, the keys in the topmost dictionary refer to the names of service clusters
@@ -301,13 +318,13 @@ description of a configuration to connect to your `yagna` daemon, e.g.:
 
 ```yaml
 yagna:
-  app_key: "$YAGNA_APPKEY"
-  subnet_tag: "devnet-beta"
+    app_key: "$YAGNA_APPKEY"
+    subnet_tag: "devnet-beta"
 
 payment:
-  budget: 1.0  # GLM
-  driver: "erc20"
-  network: "rinkeby"
+    budget: 1.0 # GLM
+    driver: "erc20"
+    network: "holesky"
 ```
 
 ### Descriptors

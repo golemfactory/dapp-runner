@@ -1,10 +1,11 @@
 """Test factories for Dapp Runner's Dapp descriptor."""
-import factory
+
+from factory import DictFactory, Factory, Faker, post_generation
 
 from dapp_runner.descriptor.dapp import DappDescriptor, PayloadDescriptor, ServiceDescriptor
 
 
-class PayloadDescriptorFactory(factory.Factory):
+class PayloadDescriptorFactory(Factory):
     """Test factory for `PayloadDescriptor` objects."""
 
     class Meta:  # noqa
@@ -13,28 +14,27 @@ class PayloadDescriptorFactory(factory.Factory):
     runtime = "fake_runtime"
 
 
-class ServiceDescriptorFactory(factory.Factory):
+class ServiceDescriptorFactory(Factory):
     """Test factory for `ServiceDescriptor` objects."""
 
     class Meta:  # noqa
         model = ServiceDescriptor
 
-    payload = factory.Faker("pystr")
+    payload = Faker("pystr")
 
 
-class DappDescriptorFactory(factory.Factory):
+class DappDescriptorFactory(Factory):
     """Test factory for `DappDescriptor` objects."""
 
     class Meta:  # noqa
         model = DappDescriptor
 
-    payloads = factory.DictFactory()
-    nodes = factory.DictFactory()
+    payloads = DictFactory()
+    nodes = DictFactory()
 
-    @factory.post_generation
+    @post_generation
     def node_count(obj, _create, extracted, **__):  # noqa
         """Automatically generate entries in the nodes dictionary."""
-
         if extracted:
             for i in range(extracted):
                 obj.payloads[f"node{i}"] = PayloadDescriptorFactory()

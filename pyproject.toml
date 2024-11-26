@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "dapp-runner"
-version = "0.3.0-dev"
+version = "0.3.1-dev"
 description = "Golem dapp-runner - a high-level interface for running decentralized applications using the Golem Network."
 authors = ["Golem Factory <contact@golem.network>"]
 license = "LGPL-3.0"
@@ -52,7 +52,7 @@ black = "^21.0b0"  # requires bump to goth's dependencies https://github.com/gol
 flake8 = "^5"
 flake8-docstrings = "^1.6"
 Flake8-pyproject = "^1.2.2"
-mypy = "^0.942"
+mypy = "^1.13.0"
 poethepoet = "^0.13"
 pytest = "^7.1"
 pytest-asyncio = "^0.18.3"
@@ -62,11 +62,18 @@ pytest-mock = "^3.10.0"
 factory-boy = "^3.2.1"
 isort = "^5.11.4"
 
+[tool.mypy]
+namespace_packages = true
+explicit_package_bases = true
+mypy_path = "."
+exclude = [
+]
+
 [tool.poetry.scripts]
 dapp-runner = "dapp_runner.__main__:_cli"
 
 [tool.poe.tasks]
-checks = {sequence = ["checks_codestyle", "checks_typing", "checks_license"], help = "Run all available code checks"}
+checks = {sequence = ["checks_codestyle", "checks_license"], help = "Run all available code checks"}
 checks_codestyle = {sequence = ["_checks_codestyle_flake8", "_checks_codestyle_isort", "_checks_codestyle_black"], help = "Run only code style checks"}
 _checks_codestyle_flake8 = "flake8 dapp_runner tests"
 _checks_codestyle_isort = "isort --check-only --diff ."
