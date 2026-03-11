@@ -24,8 +24,7 @@ build-backend = "poetry.core.masonry.api"
 [[tool.poetry.source]]
 name = "testpypi"
 url = "https://test.pypi.org/simple/"
-default = false
-secondary = true
+priority= "supplemental"
 
 [tool.poetry.dependencies]
 python = "^3.8"
@@ -42,6 +41,7 @@ pydantic = "^1.10.5"
 fastapi = "^0.93.0"
 uvicorn = {extras = ["standard"], version = "^0.21.0"}
 pyopenssl = "^23.1.1"
+setuptools = "^71.0"
 
 [tool.poetry.group.dev.dependencies]
 setuptools = "*"  # implicitly required by liccehck
