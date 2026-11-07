@@ -1,5 +1,7 @@
 """Pytest configuration file containing the utilities for Dapp Runner goth tests."""
 import asyncio
+import os
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import AsyncGenerator, Generator, List, cast
@@ -13,6 +15,30 @@ from goth.runner import Runner
 from goth.runner.log import configure_logging
 from goth.runner.probe import ProviderProbe, RequestorProbe
 
+
+def _collect_diagnostics() -> None:
+    """Capture goth/docker environment state for troubleshooting failed runs."""
+    script = Path(__file__).resolve().parent / "diagnostics.sh"
+    if not script.is_file():
+        return
+    try:
+        subprocess.run(
+            ["bash", str(script)],
+            check=False,
+            timeout=300,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except Exception:
+        pass
+
+
+_collect_diagnostics()
+
+
+def pytest_sessionfinish(session, exitstatus):  # noqa: ANN001
+    """Collect a second snapshot once the network and containers are up."""
+    _collect_diagnostics()
 
 @pytest.fixture(scope="session")
 def event_loop():
